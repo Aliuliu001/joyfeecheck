@@ -1,0 +1,248 @@
+/**
+ * Storage - Quản lý lưu trữ local storage
+ */
+
+window.Storage = {
+  // Lấy dữ liệu từ localStorage
+  _get: function(key, defaultValue = null) {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : defaultValue;
+    } catch (e) {
+      console.error(`Error reading ${key} from localStorage:`, e);
+      return defaultValue;
+    }
+  },
+
+  // Lưu dữ liệu vào localStorage
+  _set: function(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (e) {
+      console.error(`Error saving ${key} to localStorage:`, e);
+      if (window.Utils) window.Utils.showToast('Lỗi khi lưu dữ liệu. Có thể do bộ nhớ đầy.', 'error');
+      return false;
+    }
+  },
+
+  // STK PHỤ
+  saveSTKPhu: function(data) {
+    return this._set(APP_CONFIG.STORAGE_KEYS.STK_PHU, data);
+  },
+  loadSTKPhu: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.STK_PHU, []);
+  },
+  addSTKPhu: function(mapping) {
+    const list = this.loadSTKPhu();
+    // Xóa cái cũ nếu có cùng STK
+    const filtered = list.filter(item => item.stk !== mapping.stk);
+    filtered.push({
+      ...mapping,
+      addedDate: new Date().toISOString()
+    });
+    this.saveSTKPhu(filtered);
+  },
+  removeSTKPhu: function(stk) {
+    const list = this.loadSTKPhu();
+    this.saveSTKPhu(list.filter(item => item.stk !== stk));
+  },
+  mergeSTKPhu: function(newList) {
+    if (!Array.isArray(newList)) return 0;
+    const currentList = this.loadSTKPhu();
+    const currentMap = new Map(currentList.map(item => [item.stk, item]));
+    let count = 0;
+    
+    newList.forEach(newItem => {
+      if (newItem.stk && !currentMap.has(newItem.stk)) {
+        const entry = {
+          ...newItem,
+          addedDate: newItem.addedDate || new Date().toISOString()
+        };
+        currentList.push(entry);
+        currentMap.set(newItem.stk, entry);
+        count++;
+      }
+    });
+    
+    if (count > 0) {
+      this.saveSTKPhu(currentList);
+    }
+    return count;
+  },
+
+  // TỪ KHÓA
+  saveKeywords: function(data) {
+    return this._set(APP_CONFIG.STORAGE_KEYS.KEYWORDS, data);
+  },
+  loadKeywords: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.KEYWORDS, []);
+  },
+  addKeyword: function(mapping) {
+    const list = this.loadKeywords();
+    const filtered = list.filter(item => item.keyword !== mapping.keyword);
+    filtered.push({
+      ...mapping,
+      addedDate: new Date().toISOString()
+    });
+    this.saveKeywords(filtered);
+  },
+  removeKeyword: function(keyword) {
+    const list = this.loadKeywords();
+    this.saveKeywords(list.filter(item => item.keyword !== keyword));
+  },
+  mergeKeywords: function(newList) {
+    if (!Array.isArray(newList)) return 0;
+    const currentList = this.loadKeywords();
+    const currentMap = new Map(currentList.map(item => [item.keyword, item]));
+    let count = 0;
+    
+    newList.forEach(newItem => {
+      if (newItem.keyword && !currentMap.has(newItem.keyword)) {
+        const entry = {
+          ...newItem,
+          addedDate: newItem.addedDate || new Date().toISOString()
+        };
+        currentList.push(entry);
+        currentMap.set(newItem.keyword, entry);
+        count++;
+      }
+    });
+    
+    if (count > 0) {
+      this.saveKeywords(currentList);
+    }
+    return count;
+  },
+
+  // NHÓM GIA ĐÌNH
+  loadFamilyGroups: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.FAMILY_GROUPS, []);
+  },
+  saveFamilyGroups: function(data) {
+    return this._set(APP_CONFIG.STORAGE_KEYS.FAMILY_GROUPS, data);
+  },
+  addFamilyGroup: function(group) {
+    const list = this.loadFamilyGroups();
+    const newGroup = {
+      ...group,
+      groupId: 'GD' + Date.now(),
+      addedDate: new Date().toISOString()
+    };
+    list.push(newGroup);
+    this.saveFamilyGroups(list);
+    return newGroup.groupId;
+  },
+  removeFamilyGroup: function(groupId) {
+    let list = this.loadFamilyGroups();
+    list = list.filter(g => g.groupId !== groupId);
+    this.saveFamilyGroups(list);
+  },
+  mergeFamilyGroups: function(newList) {
+    if (!Array.isArray(newList)) return 0;
+    const currentList = this.loadFamilyGroups();
+    const currentMap = new Map(currentList.map(item => [item.groupId, item]));
+    let count = 0;
+    
+    newList.forEach(newItem => {
+      if (newItem.groupId && !currentMap.has(newItem.groupId)) {
+        currentList.push(newItem);
+        currentMap.set(newItem.groupId, newItem);
+        count++;
+      }
+    });
+    
+    if (count > 0) {
+      this.saveFamilyGroups(currentList);
+    }
+    return count;
+  },
+
+  // DỮ LIỆU THÁNG TRƯỚC
+  savePrevMonthDS: function(data, monthInfo) {
+    this._set(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_DS, data);
+    if (monthInfo) {
+      this._set(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_INFO, {
+        ...monthInfo,
+        savedDate: new Date().toISOString()
+      });
+    }
+  },
+  loadPrevMonthDS: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_DS, []);
+  },
+  savePrevMonthHD: function(data) {
+    this._set(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_HD, data);
+  },
+  loadPrevMonthHD: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_HD, []);
+  },
+
+  // THAY ĐỔI ĐỒNG BỘ
+  saveSyncChanges: function(changes) {
+    return this._set(APP_CONFIG.STORAGE_KEYS.SYNC_CHANGES, changes);
+  },
+  loadSyncChanges: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.SYNC_CHANGES, []);
+  },
+  addSyncChange: function(change) {
+    const list = this.loadSyncChanges();
+    list.push({
+      ...change,
+      date: new Date().toISOString(),
+      synced: false
+    });
+    this.saveSyncChanges(list);
+  },
+
+  // LỊCH SỬ
+  addHistory: function(entry) {
+    const list = this.loadHistory();
+    list.unshift({
+      ...entry,
+      date: new Date().toISOString()
+    });
+    // Giữ lại 100 bản ghi gần nhất
+    if (list.length > 100) list.length = 100;
+    this._set(APP_CONFIG.STORAGE_KEYS.HISTORY, list);
+  },
+  loadHistory: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.HISTORY, []);
+  },
+
+  // BACKUP & RESTORE
+  exportFullBackup: function() {
+    const backup = {};
+    Object.values(APP_CONFIG.STORAGE_KEYS).forEach(key => {
+      backup[key] = this._get(key);
+    });
+    backup.backupDate = new Date().toISOString();
+    backup.version = APP_CONFIG.VERSION;
+    return backup;
+  },
+  importFullBackup: function(json) {
+    if (!json || typeof json !== 'object') return false;
+    let success = true;
+    Object.values(APP_CONFIG.STORAGE_KEYS).forEach(key => {
+      if (json[key] !== undefined) {
+        if (!this._set(key, json[key])) success = false;
+      }
+    });
+    return success;
+  },
+
+  // THỐNG KÊ
+  getStorageInfo: function() {
+    const stkCount = this.loadSTKPhu().length;
+    const kwCount = this.loadKeywords().length;
+    const history = this.loadHistory();
+    const prevMonthInfo = this._get(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_INFO, null);
+    
+    return {
+      stkCount,
+      keywordCount: kwCount,
+      lastHistoryDate: history.length > 0 ? history[0].date : null,
+      prevMonthStatus: prevMonthInfo
+    };
+  }
+};

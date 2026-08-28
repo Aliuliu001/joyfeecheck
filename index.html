@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joy Fee Check - Đối soát học phí</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header id="app-header">
+    <div class="header-logo">
+      <div class="logo-icon">J</div>
+      <h1>Joy Fee Check</h1>
+      <span class="version-badge">v1.0</span>
+    </div>
+    <div class="header-actions">
+      <span id="current-date"></span>
+    </div>
+  </header>
+
+  <!-- Navigation / Tab Bar -->
+  <nav id="tab-bar">
+    <button class="tab-btn active" data-tab="import-tab">
+      <span class="tab-icon">📥</span> Import Dữ Liệu
+    </button>
+    <button class="tab-btn" data-tab="exception-tab">
+      <span class="tab-icon">⚠️</span> Ngoại lệ
+      <span class="counter-badge" id="exception-counter" style="display: none;">0</span>
+    </button>
+    <button class="tab-btn" data-tab="report-tab">
+      <span class="tab-icon">📊</span> Báo cáo Đối soát
+    </button>
+    <button class="tab-btn" data-tab="accounting-tab">
+      <span class="tab-icon">📋</span> Báo cáo Kế toán
+    </button>
+    <button class="tab-btn" data-tab="settings-tab">
+      <span class="tab-icon">⚙️</span> Cài đặt
+    </button>
+    <button class="tab-btn" data-tab="guide-tab">
+      <span class="tab-icon">📖</span> Hướng dẫn
+    </button>
+    <div class="tab-indicator"></div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main id="main-content">
+    
+    <!-- TAB 1: Import -->
+    <section id="import-tab" class="tab-content active">
+      <div class="settings-panel card glass-card">
+        <h3>Cài đặt đối soát</h3>
+        <div class="settings-form">
+          <div class="form-group">
+            <label for="month-selector">Tháng đối soát</label>
+            <input type="month" id="month-selector">
+          </div>
+          <div class="form-group">
+            <label for="default-fee">Học phí mặc định (VNĐ)</label>
+            <input type="number" id="default-fee" value="800000">
+          </div>
+        </div>
+      </div>
+
+      <div class="drop-zones-grid">
+        <div class="drop-zone card glass-card" id="drop-ds-hs">
+          <div class="drop-icon">👥</div>
+          <h4>DS Học Sinh (Google Trang tính)</h4>
+          <p class="status-text warning">Chưa import</p>
+          <input type="file" accept=".xlsx, .xls, .csv" hidden>
+        </div>
+        
+        <div class="drop-zone card glass-card" id="drop-vietinbank">
+          <div class="drop-icon">🏦</div>
+          <h4>Sao kê VietinBank</h4>
+          <p class="status-text warning">Chưa import</p>
+          <input type="file" accept=".xlsx, .xls, .csv" hidden>
+        </div>
+        
+        <div class="drop-zone card glass-card" id="drop-tpbank">
+          <div class="drop-icon">🏢</div>
+          <h4>Sao kê TPBank (từ ABBYY)</h4>
+          <p class="status-text warning">Chưa import</p>
+          <input type="file" accept=".xlsx, .xls, .csv" hidden>
+        </div>
+        
+        <div class="drop-zone card glass-card" id="drop-cash">
+          <div class="drop-icon">💵</div>
+          <h4>Tiền mặt</h4>
+          <p class="status-text warning">Chưa import</p>
+          <input type="file" accept=".xlsx, .xls, .csv" hidden>
+        </div>
+      </div>
+
+      <div class="action-panel">
+        <button id="btn-start-matching" class="btn btn-primary btn-large" disabled>
+          Bắt đầu đối soát
+        </button>
+        <p class="help-text">Yêu cầu DS Học Sinh và ít nhất 1 nguồn thu để bắt đầu</p>
+      </div>
+    </section>
+
+
+    <!-- TAB 2: Ngoại lệ -->
+    <section id="exception-tab" class="tab-content">
+      <div class="exception-section card glass-card">
+        <div class="section-header">
+          <h3>STK mới chưa map <span class="counter-badge" id="unmapped-stk-count">0</span></h3>
+        </div>
+        <div class="table-container">
+          <table id="table-unmapped-stk">
+            <thead>
+              <tr>
+                <th>STK</th>
+                <th>Tên TK</th>
+                <th>Tổng tiền</th>
+                <th>Gợi ý</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Dynamic content -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="exception-section card glass-card mt-4">
+        <div class="section-header">
+          <h3>GD TPBank chưa xác định <span class="counter-badge" id="unidentified-tpb-count">0</span></h3>
+        </div>
+        <div class="table-container">
+          <table id="table-unidentified-tpb">
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Nội dung</th>
+                <th>Số tiền</th>
+                <th>Gợi ý</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Dynamic content -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="exception-section card glass-card mt-4">
+        <div class="section-header">
+          <h3>Thay đổi cần sync lên Google Sheets <span class="counter-badge" id="sync-changes-count">0</span></h3>
+        </div>
+        <div class="table-container">
+          <table id="table-sync-changes">
+            <thead>
+              <tr>
+                <th>Loại</th>
+                <th>MSHS</th>
+                <th>Nội dung</th>
+                <th>Đã sync</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Dynamic content -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- TAB 3: Báo cáo Đối soát -->
+    <section id="report-tab" class="tab-content">
+      <div class="summary-cards">
+        <div class="summary-card card">
+          <div class="card-icon">👥</div>
+          <div class="card-info">
+            <span class="card-label">Tổng HS</span>
+            <span class="card-value" id="sum-total-hs">0</span>
+          </div>
+        </div>
+        <div class="summary-card card success">
+          <div class="card-icon">✅</div>
+          <div class="card-info">
+            <span class="card-label">Đã đóng</span>
+            <span class="card-value" id="sum-paid">0</span>
+          </div>
+        </div>
+        <div class="summary-card card error">
+          <div class="card-icon">❌</div>
+          <div class="card-info">
+            <span class="card-label">Chưa đóng</span>
+            <span class="card-value" id="sum-unpaid">0</span>
+          </div>
+        </div>
+        <div class="summary-card card warning">
+          <div class="card-icon">⚠️</div>
+          <div class="card-info">
+            <span class="card-label">Đóng thiếu</span>
+            <span class="card-value" id="sum-partial">0</span>
+          </div>
+        </div>
+        <div class="summary-card card info">
+          <div class="card-icon">🔵</div>
+          <div class="card-info">
+            <span class="card-label">Đóng dư</span>
+            <span class="card-value" id="sum-overpaid">0</span>
+          </div>
+        </div>
+        <div class="summary-card card purple">
+          <div class="card-icon">💰</div>
+          <div class="card-info">
+            <span class="card-label">Tổng thu</span>
+            <span class="card-value" id="sum-total-money">0 ₫</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters-bar card glass-card">
+        <div class="filter-group">
+          <select id="filter-status">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="Đã đóng">Đã đóng</option>
+            <option value="Chưa đóng">Chưa đóng</option>
+            <option value="Đóng thiếu">Đóng thiếu</option>
+            <option value="Đóng dư">Đóng dư</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <select id="filter-class">
+            <option value="all">Tất cả lớp</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <select id="filter-teacher">
+            <option value="all">Tất cả GV</option>
+          </select>
+        </div>
+        <div class="filter-group search-group">
+          <input type="text" id="search-report" placeholder="Tìm MSHS, Tên...">
+        </div>
+      </div>
+
+      <div class="table-container card glass-card mt-4">
+        <table id="table-report">
+          <thead>
+            <tr>
+              <th>MSHS</th>
+              <th>Họ tên</th>
+              <th>Lớp</th>
+              <th>GV</th>
+              <th>Tổng HP</th>
+              <th>VietinBank</th>
+              <th>Tiền mặt</th>
+              <th>TPBank</th>
+              <th>Tổng đã đóng</th>
+              <th>Trạng thái</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Dynamic content -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="action-panel mt-4" style="flex-direction: row; justify-content: center; gap: 8px; flex-wrap: wrap;">
+        <button id="btn-export-report" class="btn btn-primary">
+          📥 Xuất Excel Báo cáo
+        </button>
+        <button id="btn-export-full" class="btn btn-secondary">
+          📥 Xuất Báo cáo Excel Full
+        </button>
+        <button id="btn-export-nhac-ph" class="btn btn-outline" style="border-color: var(--warning-color); color: var(--warning-color);">
+          📋 Xuất DS Nhắc Phí
+        </button>
+      </div>
+    </section>
+
+
+    <!-- TAB 4: Báo cáo Kế toán -->
+    <section id="accounting-tab" class="tab-content">
+      <div class="sub-tab-bar">
+        <button class="sub-tab-btn active" data-subtab="acc-real">DS Thực tế</button>
+        <button class="sub-tab-btn" data-subtab="acc-invoice">DS Ghi HĐ</button>
+        <button class="sub-tab-btn" data-subtab="acc-changes">Thay đổi</button>
+      </div>
+
+      <div id="acc-real" class="sub-tab-content active mt-4">
+        <div class="table-container card glass-card">
+          <table id="table-acc-real">
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>MSHS</th>
+                <th>Mã lớp</th>
+                <th>Họ tên</th>
+                <th>GV</th>
+                <th>Học phí</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="acc-invoice" class="sub-tab-content mt-4">
+        <div class="toolbar mb-3">
+          <button id="btn-auto-select-invoice" class="btn btn-secondary">Tự động chọn (Tháng trước + Cty)</button>
+          <span class="selection-count">Đã chọn: <span id="invoice-selected-count">0</span></span>
+        </div>
+        <div class="table-container card glass-card">
+          <table id="table-acc-invoice">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="check-all-invoice"></th>
+                <th>STT</th>
+                <th>MSHS</th>
+                <th>Mã lớp</th>
+                <th>Họ tên</th>
+                <th>GV</th>
+                <th>Học phí</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="acc-changes" class="sub-tab-content mt-4">
+        <div class="table-container card glass-card">
+          <table id="table-acc-changes">
+            <thead>
+              <tr>
+                <th>Loại</th>
+                <th>MSHS</th>
+                <th>Họ tên</th>
+                <th>Lớp cũ</th>
+                <th>Lớp mới</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="action-panel mt-4">
+        <button id="btn-export-accounting" class="btn btn-primary">
+          📥 Xuất Excel Báo cáo Kế toán
+        </button>
+      </div>
+    </section>
+
+
+    <!-- TAB 5: Cài đặt -->
+    <section id="settings-tab" class="tab-content">
+      <div class="grid-2col">
+        <!-- Mapping Data -->
+        <div class="card glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>Dữ liệu Mapping</h3>
+            <div>
+              <button id="btn-export-mapping" class="btn btn-sm btn-primary">Xuất Mapping</button>
+              <button id="btn-import-mapping" class="btn btn-sm btn-outline">Nhập Mapping</button>
+            </div>
+          </div>
+          
+          <div class="mt-4">
+            <h4>STK Phụ</h4>
+            <div class="table-container compact-table">
+              <table id="table-stk-mapping">
+                <thead>
+                  <tr>
+                    <th>MSHS</th>
+                    <th>STK</th>
+                    <th>Tên TK</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <h4>Từ khóa TPBank</h4>
+            <div class="table-container compact-table">
+              <table id="table-keyword-mapping">
+                <thead>
+                  <tr>
+                    <th>Từ khóa</th>
+                    <th>MSHS</th>
+                    <th>Tên HS</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Left column extra: Family groups -->
+        <div class="card glass-card span-2" style="grid-column: 1 / -1;">
+          <div class="flex-between">
+            <h3>Nhóm Gia đình</h3>
+            <button id="btn-add-family" class="btn btn-primary btn-sm">➕ Thêm nhóm</button>
+          </div>
+          <p class="text-sm text-secondary mt-2">Dùng khi 1 phụ huynh đóng tiền cho nhiều con. Hệ thống sẽ tự động phân bổ tiền theo học phí riêng của từng cháu.</p>
+          <div class="table-container compact-table mt-3">
+            <table id="table-family-groups">
+              <thead>
+                <tr>
+                  <th>Tên nhóm</th>
+                  <th>STK Đại diện</th>
+                  <th>Tên PH</th>
+                  <th>Thành viên (MSHS)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Backup & Logs -->
+        <div>
+          <div class="card glass-card">
+            <h3>Backup & Khôi phục</h3>
+            <div class="status-info mt-3 mb-3">
+              <p>Dữ liệu tháng trước: <span class="badge success" id="status-prev-month">Đã có</span></p>
+              <p>Backup gần nhất: <span id="status-last-backup">Chưa có</span></p>
+            </div>
+            
+            <div class="btn-group-vertical">
+              <button id="btn-set-prev-month" class="btn btn-outline">Lưu DS tháng này làm tham chiếu</button>
+              <button id="btn-export-backup" class="btn btn-outline">Xuất backup toàn bộ (JSON)</button>
+              <button id="btn-import-backup" class="btn btn-outline">Nhập backup (JSON)</button>
+            </div>
+          </div>
+
+          <div class="card glass-card mt-4">
+            <h3>Lịch sử thao tác</h3>
+            <ul class="history-log" id="history-log">
+              <!-- Logs go here -->
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="guide-tab" class="tab-content">
+      <div class="card glass-card">
+        <h3>📖 Hướng dẫn đối soát học phí — Quy trình từ A-Z</h3>
+        <p style="color: var(--text-secondary); margin-top: 8px;">Mở tab này bất cứ lúc nào để nhớ lại cách làm. Cập nhật lần cuối: 21/08/2026.</p>
+
+        <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <h4>🔹 Bước 1: Tải 4 file dữ liệu về máy</h4>
+          <ol style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li><strong>DS Học sinh:</strong> Vào Google Trang tính → File → Tải xuống → <code>.xlsx</code></li>
+            <li><strong>Sao kê VietinBank (TK Công ty):</strong> Vào iBanking VietinBank → Sao kê → Xuất <code>.xlsx</code></li>
+            <li><strong>Sao kê TPBank (TK Cá nhân):</strong> Tải PDF từ TPBank → dùng ABBYY convert sang <code>.xlsx</code></li>
+            <li><strong>Tiền mặt:</strong> Tải từ Google Drive (file GV ghi nhận tiền nộp trực tiếp) → <code>.xlsx</code></li>
+          </ol>
+          <p style="color: var(--warning-color); font-size: 13px; margin-top: 8px;">⚠ Nếu tháng nào không có TPBank hoặc Tiền mặt thì bỏ qua ô đó, chỉ cần DS Học sinh + ít nhất 1 nguồn tiền là đủ.</p>
+        </div>
+
+        <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <h4>🔹 Bước 2: Import & Đối soát</h4>
+          <ol style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li>Mở tab <strong>Import Dữ Liệu</strong>.</li>
+            <li>Kéo thả (hoặc click) 4 file vào đúng 4 ô tương ứng.</li>
+            <li>Chọn <strong>Tháng đối soát</strong> (ví dụ: 07/2026).</li>
+            <li>Kiểm tra <strong>Học phí mặc định</strong> (thường là 800.000đ, nếu tháng nghỉ lễ thì chỉnh lại).</li>
+            <li>Bấm nút <strong style="color: var(--primary-color);">🚀 Bắt đầu đối soát</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <h4>🔹 Bước 3: Xử lý Ngoại lệ <span style="color: var(--danger-color);">(Quan trọng!)</span></h4>
+          <p style="color: var(--text-secondary); line-height: 1.8;">Sau khi đối soát, chuyển sang tab <strong>Ngoại lệ</strong>. Đây là nơi hiển thị những giao dịch app chưa tự nhận ra được.</p>
+          <ul style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li><strong>STK mới chưa map (VietinBank):</strong> Có phụ huynh CK lần đầu bằng STK lạ → Bấm "Gán MSHS" → Nhập mã HS. App tự lưu STK này cho tháng sau.</li>
+            <li><strong>GD TPBank chưa xác định:</strong> Nội dung CK không khớp từ khóa nào → Bấm "Gán MSHS" → Thiết lập từ khóa (ví dụ: "GAU KIEN" → HV236). App tự lưu cho tháng sau.</li>
+            <li><strong>Sau khi gán xong</strong>, bấm lại <strong>Bắt đầu đối soát</strong> để chạy lại với mapping mới.</li>
+          </ul>
+        </div>
+
+        <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <h4>🔹 Bước 4: Kiểm tra Báo cáo</h4>
+          <ul style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li>Tab <strong>Báo cáo Đối soát</strong>: Xem tổng quan ai đóng rồi, ai chưa, ai đóng thiếu/dư.</li>
+            <li>Cột <strong>Ghi chú</strong> tự động cảnh báo: <span style="color: var(--danger-color);">⚠ CK TK CT lệch HP</span>, <span style="color: var(--info-color);">GĐ: Nhà Cô Lan</span>, <span style="color: var(--warning-color);">Thiếu: 200.000đ</span>...</li>
+            <li>Dùng bộ lọc (Trạng thái, Lớp, GV) để kiểm tra nhanh.</li>
+          </ul>
+        </div>
+
+        <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <h4>🔹 Bước 5: Xuất file</h4>
+          <ul style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li><strong>📥 Xuất Excel Báo cáo:</strong> File đối soát nội bộ → Dùng để tự check.</li>
+            <li><strong>📥 Xuất Báo cáo Excel Full (7 sheets):</strong> Bản sao toàn bộ dữ liệu → <strong>Gửi đồng nghiệp để double-check bằng VLOOKUP.</strong></li>
+            <li><strong>📋 Xuất DS Nhắc Phí:</strong> Danh sách HS chưa đóng/đóng thiếu → Gửi GV để nhắc phụ huynh.</li>
+          </ul>
+        </div>
+
+        <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <h4>🔹 Bước 6: Xử lý Kế toán</h4>
+          <ul style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li>Tab <strong>Báo cáo Kế toán</strong> → Bấm <strong>"Tự động chọn"</strong> để tick những HS cần viết Hóa đơn VAT (tự động = tháng trước có + CK vào TK công ty).</li>
+            <li>Kiểm tra lại danh sách, tick/bỏ tick bằng tay nếu cần.</li>
+            <li>Bấm <strong>"Xuất DS Kế toán"</strong> → File Excel đúng form công ty (3 sheets: Thực Tế, DS viết HĐ, Thay đổi).</li>
+            <li>Mở file ra kiểm tra: <em>Tang moi</em> (HS mới), <em>Giam bot</em> (HS nghỉ), tổng tiền, chữ ký Giám đốc.</li>
+          </ul>
+        </div>
+
+        <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <h4>🔹 Bước 7: Đồng bộ & Lưu trữ</h4>
+          <ol style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li>Tab <strong>Cài đặt</strong> → Kiểm tra phần <strong>"Thay đổi cần đồng bộ"</strong>: Đây là danh sách STK/Keyword bạn vừa thêm trên app. Tick ✅ sau khi đã cập nhật lên Google Sheets.</li>
+            <li>Bấm <strong>"Xuất Mapping"</strong> → Lưu file <code>joy_mappings.json</code> vào thư mục <code>shared_data/</code> để lần sau app tự nạp.</li>
+            <li>Bấm <strong>"Lưu DS tháng này làm tham chiếu"</strong> → App lưu lại DS tháng này để tháng sau so sánh (phát hiện HS mới/nghỉ).</li>
+            <li>Bấm <strong>"Xuất backup (JSON)"</strong> → Sao lưu dự phòng toàn bộ hệ thống.</li>
+          </ol>
+          <p style="color: var(--warning-color); font-size: 13px; margin-top: 8px;">⚠ <strong>Lưu ý đồng bộ:</strong> Khi thêm STK mới hoặc Nhóm Gia đình trên web app, bạn cần cập nhật ngược lên Google Sheets (thủ công). App hiển thị checklist nhắc nhở ở phần "Thay đổi cần đồng bộ".</p>
+        </div>
+
+        <div class="mt-4" style="background: rgba(255,193,7,0.08); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,193,7,0.15);">
+          <h4 style="color: var(--warning-color);">⚠ Các trường hợp đặc biệt cần lưu ý</h4>
+          <ul style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
+            <li><strong>Nhóm Gia đình (1 PH đóng cho nhiều con):</strong> Vào tab Cài đặt → "Thêm nhóm" → nhập STK đại diện + danh sách MSHS các con. App sẽ tự chia tiền theo HP từng cháu.</li>
+            <li><strong>HS học 2 lớp (1 MSHS, 2 dòng):</strong> App tự gộp HP 2 lớp lại. Cột ghi chú sẽ hiện "Học 2 lớp". Không cần làm gì thêm.</li>
+            <li><strong>CK vào TK Công ty (VietinBank) lệch HP:</strong> App tự cảnh báo ⚠ trong cột ghi chú. Bạn kiểm tra xem PH chuyển thiếu hay chuyển gộp cho nhiều con.</li>
+            <li><strong>HS nghỉ giữa chừng:</strong> Nếu tháng trước có, tháng này mất → sheet "Thay đổi" tự ghi "Nghỉ học" + "Giảm bớt HĐ".</li>
+            <li><strong>PH chuyển tiền 2 lần trong tháng:</strong> App tự cộng dồn tất cả các giao dịch vào 1 MSHS.</li>
+            <li><strong>Tháng nghỉ lễ (HP khác mặc định):</strong> Chỉnh số tiền ở ô "Học phí mặc định" trước khi đối soát. Hoặc nếu HP đã có sẵn trong file DS HS thì không cần chỉnh.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Global Elements -->
+  
+  <!-- Toasts -->
+  <div id="toast-container"></div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="global-modal">
+    <div class="modal-content card glass-card">
+      <div class="modal-header">
+        <h3 id="modal-title">Tiêu đề Modal</h3>
+        <button class="btn-close" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Content injected here -->
+      </div>
+      <div class="modal-footer" id="modal-footer">
+        <button class="btn btn-secondary" id="btn-modal-cancel">Hủy</button>
+        <button class="btn btn-primary" id="btn-modal-confirm">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+    <p id="loading-text">Đang xử lý...</p>
+  </div>
+
+  <!-- Scripts -->
+  <script src="lib/xlsx.full.min.js"></script>
+  <script src="js/datamodel.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/importer.js"></script>
+  <script src="js/matcher.js"></script>
+  <script src="js/reporter.js"></script>
+  <script src="js/accounting.js"></script>
+  <script src="js/exporter.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
