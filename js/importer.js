@@ -133,13 +133,23 @@ window.Importer = {
       const dataMatrix = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
       let headerRowIdx = -1;
-      for (let i = 0; i < Math.min(20, dataMatrix.length); i++) {
+      let bestScore = 0;
+      // Duyệt rộng hơn (sao kê VietinBank có block "thông tin tài khoản" phía trên
+      // nên dòng tiêu đề thực tế có thể nằm sâu, ví dụ row 24).
+      for (let i = 0; i < Math.min(40, dataMatrix.length); i++) {
         const row = dataMatrix[i];
         if (!row) continue;
         const rowStr = row.join(' ').toLowerCase();
-        if (rowStr.includes('ghi có') || rowStr.includes('credit') || (rowStr.includes('stk') && rowStr.includes('đối ứng'))) {
+        // Ưu tiên dòng tiêu đề chuẩn: chứa "đối ứng" (STK đối ứng + Tên TK đối ứng)
+        if (rowStr.includes('đối ứng')) {
           headerRowIdx = i;
           break;
+        }
+        // Dự phòng: dòng có "ghi có"/"credit"
+        const score = (rowStr.includes('ghi có') ? 1 : 0) + (rowStr.includes('credit') ? 1 : 0);
+        if (score > bestScore) {
+          bestScore = score;
+          headerRowIdx = i;
         }
       }
 

@@ -32,22 +32,61 @@ window.Matcher = {
       }
     });
 
+    // Bản đồ MSHS -> Học phí (để chia tiền khi 1 STK có nhiều HS)
+    const hpMap = new Map();
+    students.forEach(s => {
+      hpMap.set(s.mshs, Number(s.hocPhi) || APP_CONFIG.DEFAULT_HOC_PHI);
+    });
+
+    // Hàm chia 1 GD cho nhiều MSHS theo tỉ lệ học phí
+    const splitToMembers = (tx, members) => {
+      const reqs = members.map(mshs => ({ mshs, hp: hpMap.get(mshs) || APP_CONFIG.DEFAULT_HOC_PHI }));
+      const totalHP = reqs.reduce((a, r) => a + r.hp, 0) || 1;
+      let remain = tx.credit;
+      reqs.forEach((r, idx) => {
+        // Các phần tử trước lấy phần nguyên theo tỉ lệ; phần tử cuối gom phần dư
+        const alloc = (idx === reqs.length - 1)
+          ? remain
+          : Math.floor(tx.credit * r.hp / totalHP);
+        remain -= alloc;
+        if (alloc <= 0) return;
+        matched.push({
+          ...tx,
+          credit: alloc,
+          matchedMSHS: r.mshs,
+          matchSource: tx.matchSource,
+          matchNote: members.length > 1 ? 'stk_chinh_chia_nhieu_hs' : ''
+        });
+      });
+    };
+
     transactions.forEach(tx => {
       const normTxSTK = Utils.normalizeSTK(tx.stkDoiUng);
       let found = false;
 
       // 1. Tìm trong STK chính
       if (normTxSTK && stkChinhMap.has(normTxSTK)) {
-        tx.matchedMSHS = stkChinhMap.get(normTxSTK)[0]; // Lấy HS đầu tiên, tổng hợp sẽ xử lý nhiều lớp
+        const members = stkChinhMap.get(normTxSTK);
         tx.matchSource = 'stk_chinh';
-        matched.push(tx);
+        if (members.length === 1) {
+          tx.matchedMSHS = members[0];
+          matched.push(tx);
+        } else {
+          // 1 STK chính có nhiều HS -> chia tiền theo tỉ lệ học phí
+          splitToMembers(tx, members);
+        }
         found = true;
-      } 
+      }
       // 2. Tìm trong STK phụ
       else if (normTxSTK && stkPhuMap.has(normTxSTK)) {
-        tx.matchedMSHS = stkPhuMap.get(normTxSTK)[0];
+        const members = stkPhuMap.get(normTxSTK);
         tx.matchSource = 'stk_phu';
-        matched.push(tx);
+        if (members.length === 1) {
+          tx.matchedMSHS = members[0];
+          matched.push(tx);
+        } else {
+          splitToMembers(tx, members);
+        }
         found = true;
       }
 
@@ -60,25 +99,58 @@ window.Matcher = {
   },
 
   // Khớp giao dịch TPBank (theo từ khóa)
-  matchTPBank: function(transactions, keywordsList) {
+  matchTPBank: function(transactions, keywordsList, students) {
     const matched = [];
     const unmatched = [];
 
-    // Sắp xếp từ khóa theo độ dài giảm dần (ưu tiên khớp từ dài trước)
-    // Sort keywords by length descending
-    keywordsList.sort((a, b) => (b.keyword || '').length - (a.keyword || '').length);
+    // Bản đồ MSHS -> Học phí (để chia tiền khi 1 keyword có nhiều HS)
+    const hpMap = new Map();
+    if (students) {
+      students.forEach(s => hpMap.set(s.mshs, Number(s.hocPhi) || APP_CONFIG.DEFAULT_HOC_PHI));
+    }
+
+    // Nhóm các keyword trùng nhau (cùng chuỗi) thành 1 keyword -> [mshs...]
+    const kwGroups = new Map();
+    keywordsList.forEach(k => {
+      const normKw = Utils.normalizeText(k.keyword);
+      if (!normKw) return;
+      if (!kwGroups.has(normKw)) kwGroups.set(normKw, []);
+      kwGroups.get(normKw).push(k);
+    });
+    // Sắp xếp keyword theo độ dài giảm dần (ưu tiên khớp từ dài trước)
+    const sortedKw = [...kwGroups.keys()].sort((a, b) => b.length - a.length);
 
     transactions.forEach(tx => {
       const normDesc = Utils.normalizeText(tx.explanation);
       let found = false;
 
-      for (const kwObj of keywordsList) {
-        const normKw = Utils.normalizeText(kwObj.keyword);
-        if (normKw && normDesc.includes(normKw)) {
-          tx.matchedMSHS = kwObj.mshs;
+      for (const normKw of sortedKw) {
+        if (normDesc.includes(normKw)) {
+          const members = kwGroups.get(normKw);
           tx.matchSource = 'keyword';
-          tx.matchedKeyword = kwObj.keyword;
-          matched.push(tx);
+          tx.matchedKeyword = members[0].keyword;
+          if (members.length === 1) {
+            tx.matchedMSHS = members[0].mshs;
+            matched.push(tx);
+          } else {
+            // 1 keyword (1 PH) có nhiều HS -> chia tiền theo tỉ lệ HP (hoặc đều nếu thiếu HP)
+            const reqs = members.map(m => ({ mshs: m.mshs, hp: hpMap.get(m.mshs) || 0 }));
+            const totalHP = reqs.reduce((a, r) => a + r.hp, 0);
+            let remain = tx.credit;
+            reqs.forEach((r, idx) => {
+              const alloc = (idx === reqs.length - 1)
+                ? remain
+                : Math.floor(tx.credit * (totalHP ? r.hp / totalHP : 1 / reqs.length));
+              remain -= alloc;
+              if (alloc <= 0) return;
+              matched.push({
+                ...tx,
+                credit: alloc,
+                matchedMSHS: r.mshs,
+                matchNote: 'keyword_chia_nhieu_hs'
+              });
+            });
+          }
           found = true;
           break;
         }
@@ -220,7 +292,7 @@ window.Matcher = {
       // Also check if there's an orphan aggregation by some logic under the group's first member
       // This is mostly handled by the loop above if the matcher assigned the CK to any member.
 
-      if (totalCKPool === 0) continue; // Nothing to distribute
+      if (totalCKPool === 0) return; // Nothing to distribute for this group
 
       // 2. Calculate requested tuition for each member
       const memberReqs = group.members.map(mshs => {

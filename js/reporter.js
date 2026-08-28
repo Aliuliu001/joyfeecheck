@@ -61,13 +61,9 @@ window.Reporter = {
       // ==========================
       let notes = [];
       
-      // 1. CK VietinBank khác mặc định
+      // 1. CK VietinBank khác mức học phí quy định (cảnh báo hụt HĐ)
       if (paymentData.vtb > 0 && paymentData.vtb !== tongHocPhi) {
         notes.push(`⚠ CK TK CT: ${Utils.formatCurrency(paymentData.vtb)} (HP: ${Utils.formatCurrency(tongHocPhi)})`);
-      }
-      // 2. CK TPBank sai lệch đáng kể (giống bội 800k nhưng có lẻ)
-      else if (paymentData.tpb > 0 && paymentData.tpb !== tongHocPhi && (paymentData.tpb % 100000 !== 0 || paymentData.tpb % APP_CONFIG.DEFAULT_HOC_PHI !== 0)) {
-        notes.push(`⚠ Nghi nhầm: ${Utils.formatCurrency(paymentData.tpb)}`);
       }
 
       // 3. Học nhiều lớp

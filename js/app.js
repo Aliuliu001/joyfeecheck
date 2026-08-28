@@ -280,7 +280,10 @@ window.App = {
   // ========================
   // CORE: MATCHING
   // ========================
-  runMatching: async function() {
+  runMatching: async function(switchToReport) {
+    // switchToReport: true = nhảy sang Báo cáo (khi bấm "Bắt đầu đối soát");
+    //                     false = giữ nguyên tab hiện tại (khi gán tay từ tab Ngoại lệ)
+    if (typeof switchToReport === 'undefined') switchToReport = true;
     Utils.showLoading(true);
     
     try {
@@ -296,7 +299,7 @@ window.App = {
 
       // 2. Match TPBank  
       if (this.state.tpbTransactions.length > 0) {
-        const tpbResult = Matcher.matchTPBank(this.state.tpbTransactions, keywords);
+        const tpbResult = Matcher.matchTPBank(this.state.tpbTransactions, keywords, this.state.students);
         this.state.tpbMatched = tpbResult.matched;
         this.state.tpbUnmatched = tpbResult.unmatched;
       }
@@ -349,8 +352,15 @@ window.App = {
       this.state.matchingDone = true;
       Utils.showToast('Đối soát hoàn tất!', 'success');
 
-      // Switch to report tab
-      document.querySelector('[data-tab="report-tab"]').click();
+      // Chỉ nhảy sang Báo cáo khi được yêu cầu (bấm "Bắt đầu đối soát")
+      // và không còn ngoại lệ. Nếu còn STK/từ khóa chưa gán -> ở lại tab Ngoại lệ.
+      const stillHasExceptions = (newSTKs && newSTKs.length > 0) ||
+                                 (this.state.tpbUnmatched && this.state.tpbUnmatched.length > 0);
+      if (switchToReport && !stillHasExceptions) {
+        document.querySelector('[data-tab="report-tab"]').click();
+      } else if (stillHasExceptions) {
+        Utils.showToast('Còn ' + ((newSTKs ? newSTKs.length : 0) + (this.state.tpbUnmatched ? this.state.tpbUnmatched.length : 0)) + ' ngoại lệ cần xử lý', 'warning');
+      }
 
     } catch (err) {
       Utils.showToast(`Lỗi đối soát: ${err.message}`, 'error');
@@ -464,7 +474,7 @@ window.App = {
             <td class="number">${Utils.formatCurrency(s.totalAmount)}</td>
             <td class="suggestion">${suggestText}</td>
             <td>
-              <button class="btn btn-sm btn-primary" onclick="App.assignSTKToMSHS('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}')">Gán MSHS</button>
+              <button class="btn btn-sm btn-primary" onclick="App.assignSTKToMSHS('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}')">Gán MSHS</button>
               <button class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">Bỏ qua</button>
             </td>
           </tr>`;
@@ -491,7 +501,7 @@ window.App = {
             <td class="number">${Utils.formatCurrency(t.credit)}</td>
             <td class="suggestion">${suggestText}</td>
             <td>
-              <button class="btn btn-sm btn-primary" onclick="App.assignTPBToMSHS(${idx})">Gán MSHS</button>
+              <button class="btn btn-sm btn-primary" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}')">Gán MSHS</button>
               <button class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">Bỏ qua</button>
             </td>
           </tr>`;
@@ -633,17 +643,17 @@ window.App = {
   // ========================
   // ACTIONS: Assign STK → MSHS
   // ========================
-  assignSTKToMSHS: function(stk, tenTK) {
+  assignSTKToMSHS: function(stk, tenTK, suggestedMSHS, suggestedName) {
     Utils.showModal(
       'Gán STK cho Học sinh',
       `<p>STK: <strong>${stk}</strong> (${tenTK})</p>
        <div class="form-group mt-3">
          <label>Nhập MSHS (vd: HV001):</label>
-         <input type="text" id="input-assign-mshs" class="form-input" placeholder="HVxxx" autofocus>
+         <input type="text" id="input-assign-mshs" class="form-input" placeholder="HVxxx" value="${(suggestedMSHS||'').replace(/"/g, '&quot;')}" autofocus>
        </div>
        <div class="form-group mt-2">
          <label>Tên học sinh:</label>
-         <input type="text" id="input-assign-name" class="form-input" placeholder="Tên đầy đủ">
+         <input type="text" id="input-assign-name" class="form-input" placeholder="Tên đầy đủ" value="${(suggestedName||'').replace(/"/g, '&quot;')}">
        </div>`,
       () => {
         const mshs = document.getElementById('input-assign-mshs')?.value?.trim();
@@ -674,14 +684,14 @@ window.App = {
           detail: `${mshs} ← STK ${stk} (${tenTK})`
         });
         Utils.showToast(`Đã gán STK ${stk} → ${mshs}`, 'success');
-        this.runMatching(); // Re-run matching instead of just reloading UI
+        this.runMatching(false); // Re-run matching nhưng giữ nguyên tab Ngoại lệ nếu còn
         this.loadSettingsUI();
         return true;
       }
     );
   },
 
-  assignTPBToMSHS: function(txIndex) {
+  assignTPBToMSHS: function(txIndex, suggestedMSHS, suggestedName) {
     const tx = this.state.tpbUnmatched[txIndex];
     if (!tx) return;
 
@@ -691,7 +701,7 @@ window.App = {
        <p>Số tiền: <strong>${Utils.formatCurrency(tx.credit)}</strong></p>
        <div class="form-group mt-3">
          <label>Nhập MSHS:</label>
-         <input type="text" id="input-assign-mshs" class="form-input" placeholder="HVxxx" autofocus>
+         <input type="text" id="input-assign-mshs" class="form-input" placeholder="HVxxx" value="${(suggestedMSHS||'').replace(/"/g, '&quot;')}" autofocus>
        </div>
        <div class="form-group mt-2">
          <label>Từ khóa để lưu (keyword):</label>
@@ -699,7 +709,7 @@ window.App = {
        </div>
        <div class="form-group mt-2">
          <label>Tên học sinh:</label>
-         <input type="text" id="input-assign-name" class="form-input" placeholder="Tên đầy đủ">
+         <input type="text" id="input-assign-name" class="form-input" placeholder="Tên đầy đủ" value="${(suggestedName||'').replace(/"/g, '&quot;')}">
        </div>`,
       () => {
         const mshs = document.getElementById('input-assign-mshs')?.value?.trim();
@@ -730,7 +740,7 @@ window.App = {
           detail: `${mshs} ← "${keyword || tx.explanation.substring(0, 40)}..."`
         });
         Utils.showToast(`Đã gán GD TPBank → ${mshs}`, 'success');
-        this.runMatching(); // Re-run matching
+        this.runMatching(false); // Re-run matching nhưng giữ nguyên tab Ngoại lệ nếu còn
         this.loadSettingsUI();
         return true;
       }

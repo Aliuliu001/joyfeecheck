@@ -30,6 +30,11 @@ window.Exporter = {
    */
   exportBaoCao(reportRows, stats, monthYear) {
     const wb = XLSX.utils.book_new();
+
+    // Chuẩn hóa tháng thành MM.YYYY
+    const monthLabel = (monthYear || '').includes('-')
+      ? monthYear.split('-').reverse().join('.')
+      : (monthYear || '');
     
     const dataRows = reportRows.map((row, index) => ({
       'STT': index + 1,
@@ -43,7 +48,7 @@ window.Exporter = {
       'CK TPBank': row.chuyenKhoanTPB,
       'Tổng đã đóng': row.tongDaDong,
       'Trạng thái': row.trangThai,
-      'Ghi chú': row.ghiChuGiaDinh
+      'Ghi chú': row.ghiChu || ''
     }));
 
     // Add total row
@@ -67,7 +72,7 @@ window.Exporter = {
     // Add Header Rows above data manually by inserting them
     XLSX.utils.sheet_add_aoa(ws, [
       [APP_CONFIG.COMPANY_NAME],
-      [`BÁO CÁO ĐỐI SOÁT - ${monthYear}`],
+      [`BÁO CÁO ĐỐI SOÁT - ${monthLabel}`],
       [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
       []
     ], { origin: 'A1' });
@@ -77,7 +82,7 @@ window.Exporter = {
     
     const finalAoA = [
       [APP_CONFIG.COMPANY_NAME],
-      [`BÁO CÁO ĐỐI SOÁT - ${monthYear}`],
+      [`BÁO CÁO ĐỐI SOÁT - ${monthLabel}`],
       [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
       [],
       ['STT', 'MSHS', 'Họ tên', 'Lớp', 'GV', 'Tổng HP', 'CK VietinBank', 'Tiền mặt', 'CK TPBank', 'Tổng đã đóng', 'Trạng thái', 'Ghi chú']
@@ -96,7 +101,7 @@ window.Exporter = {
     
     XLSX.utils.book_append_sheet(wb, finalWs, 'BÁO CÁO ĐỐI SOÁT');
     
-    const filename = `BaoCao_DoiSoat_${monthYear.replace(/[/ ]/g, '_')}.xlsx`;
+    const filename = `BaoCao_DoiSoat_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
   },
 
@@ -105,6 +110,11 @@ window.Exporter = {
    */
   exportKeToan(thucTeRows, ghiHDRows, changeRows, monthYear, prevMonthHD = []) {
     const wb = XLSX.utils.book_new();
+
+    // Chuẩn hóa tháng thành MM.YYYY (từ input type=month "YYYY-MM")
+    const monthLabel = (monthYear || '').includes('-')
+      ? monthYear.split('-').reverse().join('.')
+      : (monthYear || '');
 
     const newStudents = new Set();
     const quitStudents = new Set();
@@ -144,7 +154,7 @@ window.Exporter = {
       [APP_CONFIG.COMPANY_TAX, '', '', '', '', '', '', ''],
       [APP_CONFIG.COMPANY_ADDRESS, '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', ''],
-      [`DANH SACH HỌC SINH THÁNG ${monthYear.replace('/', '.')}`, '', '', '', '', '', '', ''],
+      [`DANH SACH HỌC SINH THÁNG ${monthLabel}`],
       ['', '', '', '', '', '', '', ''],
       headers
     ];
@@ -215,7 +225,7 @@ window.Exporter = {
     this.autoFitColumns(wsThayDoi, changeRows, changeHeaders);
     XLSX.utils.book_append_sheet(wb, wsThayDoi, 'Thay đổi');
 
-    const filename = `BaoCao_KeToan_${monthYear.replace(/[/ ]/g, '_')}.xlsx`;
+    const filename = `BaoCao_KeToan_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
   },
 
@@ -224,6 +234,11 @@ window.Exporter = {
    */
   exportNhacPH(nhacList, monthYear) {
     const wb = XLSX.utils.book_new();
+
+    // Chuẩn hóa tháng thành MM.YYYY
+    const monthLabel = (monthYear || '').includes('-')
+      ? monthYear.split('-').reverse().join('.')
+      : (monthYear || '');
     const dataRows = nhacList.map((row, idx) => ({
       'STT': idx + 1,
       'MSHS': row.mshs,
@@ -238,7 +253,7 @@ window.Exporter = {
     
     XLSX.utils.book_append_sheet(wb, ws, 'NHẮC PHỤ HUYNH');
     
-    const filename = `DanhSach_NhacPH_${monthYear.replace(/[/ ]/g, '_')}.xlsx`;
+    const filename = `DanhSach_NhacPH_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
   },
 
@@ -283,6 +298,11 @@ window.Exporter = {
   exportFullExcel(data) {
     const wb = XLSX.utils.book_new();
     const { students, vtb, tpb, cash, reportRows, stats, stkPhu, keywords, monthYear } = data;
+
+    // Chuẩn hóa tháng thành MM.YYYY
+    const monthLabel = (monthYear || '').includes('-')
+      ? monthYear.split('-').reverse().join('.')
+      : (monthYear || '');
 
     const createSheet = (aoa, cols) => {
       const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -335,7 +355,7 @@ window.Exporter = {
     // 7. BAO_CAO
     const reportAoA = [
       [APP_CONFIG.COMPANY_NAME],
-      [`BÁO CÁO ĐỐI SOÁT - ${monthYear}`],
+      [`BÁO CÁO ĐỐI SOÁT - ${monthLabel}`],
       [],
       ['STT', 'MSHS', 'Họ tên', 'Lớp', 'GV', 'Tổng HP', 'CK VietinBank', 'Tiền mặt', 'CK TPBank', 'Tổng đã đóng', 'Trạng thái', 'Ghi chú']
     ];
@@ -343,9 +363,9 @@ window.Exporter = {
       reportAoA.push([
         idx + 1, row.mshs, row.fullName, row.className, row.teacher, row.tongHocPhi,
         row.chuyenKhoanVTB, row.tienMat, row.chuyenKhoanTPB, row.tongDaDong,
-        row.trangThai, row.ghiChuGiaDinh
-      ]);
-    });
+ row.trangThai, row.ghiChu || ''
+ ]);
+ });
     if (stats) {
       reportAoA.push([
         '', '', 'TỔNG CỘNG', '', '', stats.tongHocPhi, '', '', '', stats.tongThu, '', ''
@@ -353,7 +373,7 @@ window.Exporter = {
     }
     XLSX.utils.book_append_sheet(wb, createSheet(reportAoA, reportAoA[3]), 'BAO_CAO');
 
-    const filename = `JoyFeeCheck_Full_${monthYear.replace(/[/ ]/g, '_')}.xlsx`;
+    const filename = `JoyFeeCheck_Full_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
   }
 };

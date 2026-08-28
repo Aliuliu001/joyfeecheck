@@ -47,9 +47,25 @@
 
 | # | File | Mô tả | Mức độ | Ghi chú |
 |:--|:--|:--|:--|:--|
-| K01 | `utils.js:60` | `parseNumber()` xóa TẤT CẢ dấu chấm → số thập phân `10.5` biến thành `105` | LOW | VND luôn là số nguyên nên thực tế không ảnh hưởng. Chỉ lưu ý nếu sau này hỗ trợ ngoại tệ |
-| K02 | `exporter.js` | `exportKeToan()` tạo 3 sheet nhưng format chưa đúng mẫu kế toán thực tế | HIGH | Cần sửa trong TASK — sheet 2 "DS viết HĐ" phải có 6 dòng header công ty + footer tổng + giám đốc |
-| K03 | `app.js` | `exportFullExcel()` truyền `this.state` nhưng state không có đúng key `vtb`, `tpb`, `cash` mà là `vtbTransactions`, `tpbTransactions`, `cashPayments` | HIGH | Cần kiểm tra key mapping khi gọi |
-| K04 | `accounting.js` | `generateNhacPH()` đã code nhưng chưa bao giờ được gọi từ `app.js` | LOW | Dead code, xem xét bổ sung hoặc xóa |
-| K05 | `exporter.js` | `exportNhacPH()` đã code nhưng chưa bao giờ được gọi | LOW | Tương tự K04 |
-| K06 | Toàn bộ | **Chưa test import file thực tế trên trình duyệt** — script tách 4 file test bị treo vì Excel COM bị kẹt prompt | CRITICAL | Cần user tự tách file thủ công hoặc fix script |
+| K02 | `exporter.js` | `exportKeToan()` sheet "DS viết HĐ" — **ĐÃ FIX** (code hiện có 6 dòng header công ty + footer tổng + Giám đốc). Docs cũ ghi chưa fix là SAI. | — | Đã verify 28/08 |
+| K03 | `exporter.js` | `exportFullExcel()` key mapping — **ĐÃ FIX** (app.js truyền đúng `vtb/tpb/cash`). Docs cũ ghi chưa fix là SAI. | — | Đã verify 28/08 |
+| K06 | Toàn bộ | **ĐÃ TEST** bằng Node harness 28/08 với file thật tháng 7. Diff vs master BAO_CAO: 173 trùng, 3 mismatch (1.7%), lệch 800k do 2 HS thiếu keyword (đúng nghiệp vụ). | — | Xem session test bên dưới |
+
+---
+
+## ✅ ĐÃ FIX 28/08 (phát hiện qua test file thật tháng 7)
+
+| # | File | Mô tả | Mức độ | Fix |
+|:--|:--|:--|:--|:--|
+| B21 | `exporter.js` | Xuất Excel lấy `row.ghiChuGiaDinh` (thường rỗng) thay vì `row.ghiChu` → **mất toàn bộ cảnh báo ⚠** trong file Excel | HIGH | Đổi sang `row.ghiChu` ở `exportBaoCao` + `exportFullExcel` (sheet BAO_CAO) |
+| B22 | `exporter.js` | Format tháng `2026-08` (từ input type=month) không khớp mẫu kế toán `07.2026` | LOW | Chuẩn hóa thành `MM.YYYY` ở tất cả hàm export |
+| B23 | `reporter.js` | Cảnh báo "⚠ Nghi nhầm" báo quá nhiều false positive (vì HP=800k, hầu hết GD lẻ đều bị gắn) | MEDIUM | User chọn bỏ hẳn, chỉ giữ "⚠ CK TK CT lệch HP" |
+| B24 | `matcher.js:220` | `if (totalCKPool === 0) continue;` nằm trong `.forEach` → **SyntaxError crash toàn bộ app** nếu có nhóm GĐ | CRITICAL | Đổi `continue` → `return` |
+| B25 | `importer.js:135` | Vòng lặp tìm header VTB giới hạn 20 dòng → sao kê có block "thông tin tài khoản" (24 dòng header) → chọn sai dòng → **toàn bộ VTB 0 match** | HIGH | Mở rộng 40 dòng + ưu tiên dòng chứa "đối ứng" |
+| B26 | `matcher.js` | 1 STK chính (hoặc 1 keyword) có nhiều HS → chỉ gán khoản tiền vào HS đầu tiên `[0]`, bỏ sót các con còn lại | HIGH | Chia tiền theo tỉ lệ HP cho tất cả HS share cùng STK/keyword (áp dụng cho cả VTB và TPB) |
+
+### Kết quả test (Node harness, file thật tháng 7)
+- Parse: DS 185 HS, VTB 86 GD (match 90 sau chia), TPB 46 GD (match 42), Tiền mặt 27.
+- Diff vs master `BAO_CAO`: 173 trùng / 3 mismatch (1.7%). Lệch tổng 800.000₫ do 2 HS (HV329, HV339) thiếu keyword mapping — đúng nghiệp vụ (tab Ngoại lệ để gán tay).
+- File Excel xuất ra ĐÃ có cột Ghi chú chứa ⚠ (verify 6 dòng).
+- Patch: `joyfeecheck_fixes.patch` (5 file, +134 dòng).
