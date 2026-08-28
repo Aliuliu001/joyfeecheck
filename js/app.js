@@ -335,7 +335,12 @@ window.App = {
       // 6. Detect changes
       const prevMonthDS = Storage.loadPrevMonthDS();
       if (prevMonthDS && prevMonthDS.length > 0) {
-        this.state.changeRecords = Accounting.detectChanges(this.state.students, prevMonthDS, vtbMatchedMSHS);
+        // Map MSHS -> tổng CK VietinBank (TK Công ty) để kiểm tra sai số tiền
+        const vtbAmountByMSHS = {};
+        this.state.vtbMatched.forEach(t => {
+          if (t.matchedMSHS) vtbAmountByMSHS[t.matchedMSHS] = (vtbAmountByMSHS[t.matchedMSHS] || 0) + (Number(t.credit) || 0);
+        });
+        this.state.changeRecords = Accounting.detectChanges(this.state.students, prevMonthDS, vtbMatchedMSHS, vtbAmountByMSHS);
       } else {
         this.state.changeRecords = [];
       }

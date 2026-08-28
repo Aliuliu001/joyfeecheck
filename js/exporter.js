@@ -198,6 +198,7 @@ window.Exporter = {
         case APP_CONFIG.CHANGE_TYPE.QUIT: typeLabel = 'Nghỉ học'; break;
         case APP_CONFIG.CHANGE_TYPE.CLASS_CHANGE: typeLabel = 'Đổi lớp'; break;
         case APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER: typeLabel = 'CK TK Công ty'; break;
+        case APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT: typeLabel = 'SAI SỐ TIỀN CK CÔNG TY'; break;
       }
       aoaThayDoi.push([
         typeLabel, item.mshs, item.fullName, item.oldClass || '', item.newClass || '', item.ghiChu || ''

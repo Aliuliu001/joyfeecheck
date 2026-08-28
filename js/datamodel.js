@@ -158,7 +158,8 @@ const APP_CONFIG = {
     NEW: 'tang_moi',
     QUIT: 'nghi_hoc',
     CLASS_CHANGE: 'doi_lop',
-    COMPANY_TRANSFER: 'ck_tk_cty'
+    COMPANY_TRANSFER: 'ck_tk_cty',
+    WRONG_AMOUNT: 'sai_so_tien'
   }
 };
 

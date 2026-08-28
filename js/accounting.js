@@ -69,7 +69,7 @@ window.Accounting = {
   /**
    * Compare with previous month to detect new, quit, changed class, or company transfer.
    */
-  detectChanges(currentStudents, previousStudents, vtbMatchedMSHS) {
+  detectChanges(currentStudents, previousStudents, vtbMatchedMSHS, vtbAmountByMSHS) {
     const changes = [];
     
     // Use first class row as primary class if multiple exist
@@ -112,8 +112,10 @@ window.Accounting = {
         }
       }
       
-      // If transferred to company account
+      // If transferred to company account (VietinBank) — phải đúng học phí quy định
       if (vtbMatchedMSHS.has(mshs)) {
+        const hp = Number(cStudent.hocPhi) || 0;
+        const ckNop = (vtbAmountByMSHS && vtbAmountByMSHS[mshs]) || 0;
         changes.push({
           type: APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER,
           mshs: mshs,
@@ -122,6 +124,18 @@ window.Accounting = {
           newClass: cStudent.className,
           ghiChu: 'CK qua TK Công ty (VietinBank)'
         });
+        // Kiểm tra sai số tiền CK TK công ty (phải khớp học phí quy định)
+        if (hp > 0 && ckNop !== hp) {
+          const chenh = ckNop - hp;
+          changes.push({
+            type: APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT,
+            mshs: mshs,
+            fullName: cStudent.fullName,
+            oldClass: null,
+            newClass: cStudent.className,
+            ghiChu: `Sai số tiền CK TK Công ty: nộp ${Utils.formatCurrency(ckNop)} / quy định ${Utils.formatCurrency(hp)} (${chenh < 0 ? 'THIẾU ' + Utils.formatCurrency(-chenh) : 'DƯ ' + Utils.formatCurrency(chenh)})`
+          });
+        }
       }
     }
     
@@ -144,7 +158,8 @@ window.Accounting = {
       [APP_CONFIG.CHANGE_TYPE.NEW]: 1,
       [APP_CONFIG.CHANGE_TYPE.QUIT]: 2,
       [APP_CONFIG.CHANGE_TYPE.CLASS_CHANGE]: 3,
-      [APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER]: 4
+      [APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER]: 4,
+      [APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT]: 5
     };
     
     changes.sort((a, b) => priority[a.type] - priority[b.type]);
