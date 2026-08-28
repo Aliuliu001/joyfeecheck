@@ -157,6 +157,24 @@ window.Matcher = {
       }
 
       if (!found) {
+        // Thử khớp bằng Tên chủ TK đối ứng (khi PH ghi sai/nợ nội dung, app vẫn nhận diện được)
+        if (tx.tenTKDoiUng) {
+          const normTenTK = Utils.normalizeText(tx.tenTKDoiUng);
+          const hitStudents = students.filter(s => {
+            const t = Utils.normalizeText(s.tenTK || '');
+            return t && (t.includes(normTenTK) || normTenTK.includes(t));
+          });
+          if (hitStudents.length >= 1) {
+            tx.matchedMSHS = hitStudents[0].mshs;
+            tx.matchSource = 'ten_tk';
+            if (hitStudents.length > 1) tx.matchNote = 'ten_tk_trung_nhieu';
+            matched.push(tx);
+            found = true;
+          }
+        }
+      }
+
+      if (!found) {
         unmatched.push(tx);
       }
     });

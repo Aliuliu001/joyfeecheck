@@ -375,5 +375,35 @@ window.Exporter = {
 
     const filename = `JoyFeeCheck_Full_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
+  },
+
+  /**
+   * (B) Xuất danh sách STK phụ đã gán -> để người dùng dán ngược vào
+   *     Google Trang tính (sheet STK_PHU). Hỗ trợ không giới hạn số TK/bé.
+   * @param {Array} stkPhuList  Storage.loadSTKPhu()
+   * @param {Array} students    DS HS (để lấy tên đầy đủ chuẩn)
+   */
+  exportSTKPhu: function(stkPhuList, students) {
+    const wb = XLSX.utils.book_new();
+    const nameMap = new Map();
+    (students || []).forEach(s => nameMap.set(s.mshs, s.fullName || ''));
+
+    const aoa = [
+      ['STT', 'MSHS', 'Tên học sinh', 'STK phụ', 'Tên chủ TK', 'Ngày thêm'],
+      []
+    ];
+    (stkPhuList || []).forEach((s, idx) => {
+      aoa.push([
+        idx + 1,
+        s.mshs,
+        nameMap.get(s.mshs) || (s.fullName || ''),
+        s.stk,
+        s.tenTK || '',
+        s.addedDate ? s.addedDate.split('T')[0] : ''
+      ]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'STK_PHU');
+    const filename = `STK_PHU_moi_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`;
+    this.triggerDownload(wb, filename);
   }
 };

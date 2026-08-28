@@ -243,7 +243,9 @@ window.App = {
     document.getElementById('check-all-invoice')?.addEventListener('change', (e) => this.toggleAllInvoice(e.target.checked));
 
     // Settings buttons
+    document.getElementById('btn-import-prev-month')?.addEventListener('click', () => this.importPrevMonthExcel());
     document.getElementById('btn-set-prev-month')?.addEventListener('click', () => this.savePrevMonth());
+    document.getElementById('btn-export-stkphu')?.addEventListener('click', () => this.exportSTKPhu());
     document.getElementById('btn-export-backup')?.addEventListener('click', () => this.exportBackup());
     document.getElementById('btn-import-backup')?.addEventListener('click', () => this.importBackup());
     
@@ -857,9 +859,50 @@ window.App = {
     this.loadSettingsUI();
   },
 
+  // (C) Nhập DS nộp Kế toán tháng trước từ file Excel (để đối chiếu Tăng mới/Giảm/Sai số tiền)
+  importPrevMonthExcel: function() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      Utils.showLoading(true);
+      try {
+        const ds = await Importer.parseGoogleSheets(file);
+        const students = ds.students || ds;
+        // Trích MSHS có cờ ghi HĐ (cột ghiChuGiaDinh chứa 'ghi hd' / 'hóa đơn')
+        const hdList = students
+          .filter(s => {
+            const note = (s.ghiChuGiaDinh || '').toLowerCase();
+            return note.includes('ghi hd') || note.includes('hoá đơn') || note.includes('hóa đơn');
+          })
+          .map(s => s.mshs);
+        const monthYear = document.getElementById('month-selector')?.value || '';
+        Storage.savePrevMonthDS(students, { month: monthYear + ' (Kế toán T)', savedDate: new Date().toISOString() });
+        Storage.savePrevMonthHD(hdList);
+        Storage.addHistory({
+          date: new Date().toISOString(),
+          action: 'Nhập DS Kế toán tháng trước',
+          detail: `${students.length} HS, ${hdList.length} ghi HĐ`
+        });
+        Utils.showToast(`Đã nhập DS tháng trước: ${students.length} HS (${hdList.length} ghi HĐ)`, 'success');
+        this.loadSettingsUI();
+      } catch (err) {
+        Utils.showToast(`Lỗi đọc file: ${err.message}`, 'error');
+      } finally {
+        Utils.showLoading(false);
+      }
+    };
+    input.click();
+  },
+
+  exportSTKPhu: function() {
+    Exporter.exportSTKPhu(Storage.loadSTKPhu(), this.state.students);
+    Utils.showToast('Đã xuất DS STK phụ (dán vào Google Trang tính)', 'success');
+  },
+
   exportBackup: function() {
-    const data = Storage.exportFullBackup();
-    Exporter.exportBackupJSON(data);
     Utils.showToast('Đã xuất file backup', 'success');
   },
 
