@@ -1167,6 +1167,7 @@ window.App = {
     // Storage info
     const info = Storage.getStorageInfo();
     const prevMonthStatus = document.getElementById('status-prev-month');
+    const prevAccountingStatus = document.getElementById('status-prev-accounting');
     const lastBackup = document.getElementById('status-last-backup');
     if (prevMonthStatus) {
       if (info.prevMonthInfo) {
@@ -1175,6 +1176,16 @@ window.App = {
       } else {
         prevMonthStatus.textContent = 'Chưa có';
         prevMonthStatus.className = 'badge warning';
+      }
+    }
+    if (prevAccountingStatus) {
+      const prevPaymentStatus = Storage._get('joy_prev_month_payment_status', null);
+      if (prevPaymentStatus && Object.keys(prevPaymentStatus).length > 0) {
+        prevAccountingStatus.textContent = `Đã có (${Object.keys(prevPaymentStatus).length} HS)`;
+        prevAccountingStatus.className = 'badge success';
+      } else {
+        prevAccountingStatus.textContent = 'Chưa có';
+        prevAccountingStatus.className = 'badge warning';
       }
     }
     if (lastBackup) {
