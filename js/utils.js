@@ -190,9 +190,17 @@ window.Utils = {
     
     newConfirmBtn.onclick = () => {
       if (onConfirm) {
+        // Disable button to prevent double-click
+        newConfirmBtn.disabled = true;
+        newConfirmBtn.textContent = 'Đang xử lý...';
         // Nếu onConfirm trả về false rõ ràng, không đóng modal (ví dụ: validation fail)
-        if (onConfirm() !== false) {
+        const result = onConfirm();
+        if (result !== false) {
           closeModal();
+        } else {
+          // Re-enable button if validation fails
+          newConfirmBtn.disabled = false;
+          newConfirmBtn.textContent = 'Xác nhận';
         }
       } else {
         closeModal();

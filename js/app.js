@@ -1084,7 +1084,10 @@ window.App = {
           <td>${m.mshs}</td>
           <td><code>${m.stk}</code></td>
           <td>${m.tenTK}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="App.deleteSTKPhu('${m.stk.replace(/'/g, "\\'")}')">Xóa</button></td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="App.editSTKPhu('${m.stk.replace(/'/g, "\\'")}', '${m.mshs.replace(/'/g, "\\'")}', '${(m.tenTK||'').replace(/'/g, "\\'")}')">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="App.deleteSTKPhu('${m.stk.replace(/'/g, "\\'")}')">Xóa</button>
+          </td>
         </tr>`).join('');
       }
     }
@@ -1100,7 +1103,10 @@ window.App = {
           <td>${k.keyword}</td>
           <td>${k.mshs}</td>
           <td>${k.studentName || ''}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="App.deleteKeyword('${k.keyword.replace(/'/g, "\\'")}')">Xóa</button></td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="App.editKeyword('${k.keyword.replace(/'/g, "\\'")}', '${k.mshs.replace(/'/g, "\\'")}', '${(k.studentName||'').replace(/'/g, "\\'")}')">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="App.deleteKeyword('${k.keyword.replace(/'/g, "\\'")}')">Xóa</button>
+          </td>
         </tr>`).join('');
       }
     }
@@ -1143,10 +1149,79 @@ window.App = {
     this.loadSettingsUI();
   },
 
+  editSTKPhu: function(oldStk, oldMshs, oldTenTK) {
+    Utils.showModal(
+      'Sửa STK Phụ',
+      `
+      <div class="form-group mb-3">
+        <label>MSHS:</label>
+        <input type="text" id="input-edit-stk-mshs" class="form-control" value="${oldMshs}">
+      </div>
+      <div class="form-group mb-3">
+        <label>STK:</label>
+        <input type="text" id="input-edit-stk-stk" class="form-control" value="${oldStk}">
+      </div>
+      <div class="form-group mb-3">
+        <label>Tên TK:</label>
+        <input type="text" id="input-edit-stk-ten" class="form-control" value="${oldTenTK}">
+      </div>
+      `,
+      () => {
+        const mshs = document.getElementById('input-edit-stk-mshs').value.trim().toUpperCase();
+        const stk = document.getElementById('input-edit-stk-stk').value.trim();
+        const tenTK = document.getElementById('input-edit-stk-ten').value.trim();
+        if (!mshs || !stk) {
+          Utils.showToast('MSHS và STK không được để trống', 'error');
+          return false;
+        }
+        // Xóa cũ, thêm mới
+        Storage.removeSTKPhu(oldStk);
+        Storage.addSTKPhu({ mshs, stk, tenTK, addedDate: new Date().toISOString() });
+        Utils.showToast(`Đã cập nhật STK ${stk} → ${mshs}`, 'success');
+        this.loadSettingsUI();
+        return true;
+      }
+    );
+  },
+
   deleteKeyword: function(keyword) {
     Storage.removeKeyword(keyword);
     Utils.showToast('Đã xóa từ khóa', 'success');
     this.loadSettingsUI();
+  },
+
+  editKeyword: function(oldKeyword, oldMshs, oldName) {
+    Utils.showModal(
+      'Sửa Từ khóa',
+      `
+      <div class="form-group mb-3">
+        <label>Từ khóa:</label>
+        <input type="text" id="input-edit-kw-keyword" class="form-control" value="${oldKeyword}">
+      </div>
+      <div class="form-group mb-3">
+        <label>MSHS:</label>
+        <input type="text" id="input-edit-kw-mshs" class="form-control" value="${oldMshs}">
+      </div>
+      <div class="form-group mb-3">
+        <label>Tên HS:</label>
+        <input type="text" id="input-edit-kw-name" class="form-control" value="${oldName}">
+      </div>
+      `,
+      () => {
+        const keyword = document.getElementById('input-edit-kw-keyword').value.trim();
+        const mshs = document.getElementById('input-edit-kw-mshs').value.trim().toUpperCase();
+        const name = document.getElementById('input-edit-kw-name').value.trim();
+        if (!keyword || !mshs) {
+          Utils.showToast('Từ khóa và MSHS không được để trống', 'error');
+          return false;
+        }
+        Storage.removeKeyword(oldKeyword);
+        Storage.addKeyword({ keyword, mshs, studentName: name, addedDate: new Date().toISOString() });
+        Utils.showToast(`Đã cập nhật từ khóa "${keyword}" → ${mshs}`, 'success');
+        this.loadSettingsUI();
+        return true;
+      }
+    );
   },
 
   addFamilyGroupUI: function() {
