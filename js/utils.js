@@ -18,6 +18,7 @@ window.Utils = {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/đ/g, 'd')
+      .replace(/\s+/g, ' ')  // Normalize multiple spaces to single space
       .trim();
   },
 

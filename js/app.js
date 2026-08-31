@@ -506,6 +506,21 @@ window.App = {
   // RENDER: Exceptions
   // ========================
   renderExceptions: function(newSTKs, unmatchedTPB) {
+    // Filter out skipped transactions
+    const skippedSTK = Storage._get('joy_skipped_stk', []);
+    const skippedSTKSet = new Set(skippedSTK.map(s => s.stk));
+    const skippedTPB = Storage._get('joy_skipped_tpb', []);
+    const skippedTPBSet = new Set(skippedTPB.map(s => s.key));
+    
+    // Filter newSTKs to exclude skipped
+    newSTKs = newSTKs.filter(s => !skippedSTKSet.has(s.stk));
+    
+    // Filter unmatchedTPB to exclude skipped
+    unmatchedTPB = (unmatchedTPB || []).filter(t => {
+      const key = `${t.date}_${t.credit}_${t.explanation}`;
+      return !skippedTPBSet.has(key);
+    });
+
     // New STKs
     const stkTbody = document.querySelector('#table-unmapped-stk tbody');
     const stkCount = document.getElementById('unmapped-stk-count');
@@ -531,7 +546,7 @@ window.App = {
             <td>
               <button class="btn btn-sm btn-primary" onclick="App.assignSTKToMSHS('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', false)">Gán MSHS</button>
               <button class="btn btn-sm btn-warning" onclick="App.assignSTKToMSHS('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', true)">📅 Tháng trước</button>
-              <button class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">Bỏ qua</button>
+              <button class="btn btn-sm btn-outline" onclick="App.skipSTK('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}')">Bỏ qua</button>
             </td>
           </tr>`;
         }).join('');
@@ -559,7 +574,7 @@ window.App = {
             <td>
               <button class="btn btn-sm btn-primary" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', false)">Gán MSHS</button>
               <button class="btn btn-sm btn-warning" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', true)">📅 Tháng trước</button>
-              <button class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">Bỏ qua</button>
+              <button class="btn btn-sm btn-outline" onclick="App.skipTPB(${idx})">Bỏ qua</button>
             </td>
           </tr>`;
         }).join('');
@@ -891,6 +906,31 @@ window.App = {
     if (reportTab && reportTab.classList.contains('active')) {
       this.renderReportTable(this.state.reportRows);
     }
+  },
+
+  // Bỏ qua giao dịch VietinBank (lưu vào storage để không hiện lại)
+  skipSTK: function(stk, tenTK) {
+    const skipped = Storage._get('joy_skipped_stk', []);
+    if (!skipped.some(s => s.stk === stk)) {
+      skipped.push({ stk, tenTK, date: new Date().toISOString() });
+      Storage._set('joy_skipped_stk', skipped);
+    }
+    Utils.showToast('Đã bỏ qua giao dịch này', 'success');
+    this.renderCurrentTab();
+  },
+
+  // Bỏ qua giao dịch TPBank (lưu vào storage để không hiện lại)
+  skipTPB: function(txIndex) {
+    const tx = this.state.tpbUnmatched[txIndex];
+    if (!tx) return;
+    const skipped = Storage._get('joy_skipped_tpb', []);
+    const key = `${tx.date}_${tx.credit}_${tx.explanation}`;
+    if (!skipped.some(s => s.key === key)) {
+      skipped.push({ key, date: tx.date, credit: tx.credit, explanation: tx.explanation, skippedDate: new Date().toISOString() });
+      Storage._set('joy_skipped_tpb', skipped);
+    }
+    Utils.showToast('Đã bỏ qua giao dịch này', 'success');
+    this.renderCurrentTab();
   },
 
   // ========================
