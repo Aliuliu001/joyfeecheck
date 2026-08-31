@@ -497,7 +497,8 @@ window.App = {
       case APP_CONFIG.STATUS.UNPAID: return 'error';
       case APP_CONFIG.STATUS.PARTIAL: return 'warning';
       case APP_CONFIG.STATUS.OVERPAID: return 'info';
-      case APP_CONFIG.STATUS.PACKAGE: return 'info';
+      case APP_CONFIG.STATUS.PACKAGE: return 'purple';
+      case 'MIỄN PHÍ': return 'success';
       default: return '';
     }
   },

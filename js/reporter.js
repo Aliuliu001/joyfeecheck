@@ -46,7 +46,10 @@ window.Reporter = {
       let trangThai = '';
       let soTienThieu = 0;
       
-      if (packageInfo.active) {
+      // Học sinh miễn phí (HP = 0)
+      if (tongHocPhi === 0) {
+        trangThai = 'MIỄN PHÍ';
+      } else if (packageInfo.active) {
         // Student has paid via package
         trangThai = APP_CONFIG.STATUS.PACKAGE;
       } else if (paymentData.total >= tongHocPhi && tongHocPhi > 0) {

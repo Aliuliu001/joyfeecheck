@@ -94,7 +94,9 @@ window.Importer = {
         const hocPhiRaw = row[colMap.hocPhi];
         if (hocPhiRaw !== undefined) {
             const parsed = Utils.parseNumber(hocPhiRaw);
-            if (parsed > 0) hocPhiVal = parsed;
+            // Cho phép HP = 0 (miễn phí) hoặc HP > 0 (giảm/miễn)
+            // Chỉ dùng default nếu cột HP trống hoặc không parse được
+            if (!isNaN(parsed)) hocPhiVal = parsed;
         }
 
         const student = {

@@ -18,6 +18,7 @@ window.Utils = {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/đ/g, 'd')
+      .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-')  // Normalize all dash types to regular dash
       .replace(/\s+/g, ' ')  // Normalize multiple spaces to single space
       .trim();
   },
