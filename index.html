@@ -258,6 +258,7 @@
           <input type="text" id="search-report" placeholder="Tìm MSHS, Tên...">
         </div>
         <div class="filter-group">
+          <button class="btn btn-sm btn-outline" onclick="App.runMatching(true)">🔄 Refresh</button>
           <button class="btn btn-sm btn-outline" onclick="App.addFamilyGroupUI()">➕ Nhóm gia đình</button>
         </div>
       </div>
@@ -266,6 +267,7 @@
         <table id="table-report">
           <thead>
             <tr>
+              <th style="width:40px">+</th>
               <th>MSHS</th>
               <th>Họ tên</th>
               <th>Lớp</th>

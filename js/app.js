@@ -423,14 +423,18 @@ window.App = {
     if (!tbody) return;
 
     if (!rows || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:var(--text-secondary)">Chưa có dữ liệu. Hãy import file và bấm "Bắt đầu đối soát".</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px; color:var(--text-secondary)">Chưa có dữ liệu. Hãy import file và bấm "Bắt đầu đối soát".</td></tr>';
       return;
     }
 
     tbody.innerHTML = rows.map(r => {
       const statusClass = this.getStatusClass(r.trangThai);
       const isWarning = (r.ghiChu || '').includes('⚠');
+      const isOverpaid = r.trangThai === APP_CONFIG.STATUS.OVERPAID;
+      const safeName = (r.fullName || '').replace(/'/g, "\\'");
+      const safeMshs = (r.mshs || '').replace(/'/g, "\\'");
       return `<tr class="${isWarning ? 'warning-row' : ''}">
+        <td><button class="btn btn-xs btn-outline" title="Thêm gia đình" onclick="App.addFamilyGroupForStudent('${safeMshs}', '${safeName}')">➕</button></td>
         <td>${r.mshs || ''}</td>
         <td>${r.fullName || ''}</td>
         <td>${r.className || ''}</td>
@@ -441,7 +445,7 @@ window.App = {
         <td class="number">${Utils.formatCurrency(r.chuyenKhoanTPB)}</td>
         <td class="number">${Utils.formatCurrency(r.tongDaDong)}</td>
         <td><span class="badge ${statusClass}">${r.trangThai || ''}</span></td>
-        <td style="${isWarning ? 'color: var(--danger-color); font-weight: 500;' : ''}">${r.ghiChu || ''}</td>
+        <td style="${isWarning ? 'color: var(--danger-color); font-weight: 500;' : ''}">${r.ghiChu || ''}${isOverpaid ? '<br><button class="btn btn-xs btn-outline mt-1" onclick="App.markBookFee(\'' + safeMshs + '\')">📚 Tiền sách</button>' : ''}</td>
       </tr>`;
     }).join('');
   },
@@ -452,6 +456,7 @@ window.App = {
       case APP_CONFIG.STATUS.UNPAID: return 'error';
       case APP_CONFIG.STATUS.PARTIAL: return 'warning';
       case APP_CONFIG.STATUS.OVERPAID: return 'info';
+      case APP_CONFIG.STATUS.PACKAGE: return 'info';
       default: return '';
     }
   },
@@ -1277,6 +1282,100 @@ window.App = {
     Storage.removePackage(packageId);
     Utils.showToast('Đã xóa gói', 'success');
     this.loadSettingsUI();
+  },
+
+  // ========================
+  // ACTIONS: Quick Family Group from Report
+  // ========================
+  addFamilyGroupForStudent: function(mshs, fullName) {
+    // Pre-fill form with this student's info
+    Utils.showModal(
+      `Thêm Nhóm Gia đình — ${fullName} (${mshs})`,
+      `
+      <div class="form-group mb-3">
+        <label>Tên nhóm (gợi nhớ)</label>
+        <input type="text" id="input-fg-name" class="form-control" placeholder="VD: Nhà ${fullName}" value="Nhà ${fullName}">
+      </div>
+      <div class="form-group mb-3">
+        <label>Danh sách MSHS của các con (bắt buộc)</label>
+        <input type="text" id="input-fg-members" class="form-control" placeholder="Cách nhau dấu phẩy" value="${mshs}, ">
+      </div>
+      <div class="form-group mb-3">
+        <label>Tên PH / Chủ tài khoản (tùy chọn)</label>
+        <input type="text" id="input-fg-ten" class="form-control" placeholder="Tên phụ huynh nếu biết">
+      </div>
+      <div class="form-group mb-3">
+        <label>STK Đại diện (tùy chọn)</label>
+        <input type="text" id="input-fg-stk" class="form-control" placeholder="Bỏ trống nếu CK qua TPBank/Zalo">
+      </div>
+      <p class="text-sm text-secondary">💡 Bổ sung thêm MSHS anh chị em vào ô trên, rồi bấm Xác nhận.</p>
+      `,
+      () => {
+        const groupName = document.getElementById('input-fg-name').value.trim();
+        const membersRaw = document.getElementById('input-fg-members').value.trim();
+        const tenPH = document.getElementById('input-fg-ten').value.trim();
+        const stkDaiDien = document.getElementById('input-fg-stk').value.trim();
+
+        if (!groupName || !membersRaw) {
+          Utils.showToast('Vui lòng nhập Tên nhóm và MSHS các con', 'error');
+          return false;
+        }
+
+        const members = membersRaw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        if (members.length < 2) {
+          Utils.showToast('Nhóm gia đình phải có ít nhất 2 MSHS', 'error');
+          return false;
+        }
+
+        Storage.addFamilyGroup({
+          groupName,
+          stkDaiDien: stkDaiDien || tenPH || groupName,
+          tenPH: tenPH || '',
+          members
+        });
+
+        Utils.showToast(`Đã thêm nhóm gia đình: ${groupName}`, 'success');
+        this.loadSettingsUI();
+        return true;
+      }
+    );
+  },
+
+  // ========================
+  // ACTIONS: Book Fee Mark
+  // ========================
+  markBookFee: function(mshs) {
+    Utils.showModal(
+      `📚 Ghi nhận Tiền sách — ${mshs}`,
+      `
+      <p>Học sinh <strong>${mshs}</strong> đóng dư học phí.</p>
+      <div class="form-group mt-3">
+        <label>Số tiền sách (VNĐ):</label>
+        <input type="text" id="input-book-fee" class="form-control" placeholder="VD: 200000" autofocus>
+      </div>
+      <p class="text-sm text-secondary">Sau khi xác nhận, ghi chú "📚 Tiền sách: X.XXX.XXXđ" sẽ được thêm vào dòng này.</p>
+      `,
+      () => {
+        const amount = Utils.parseNumber(document.getElementById('input-book-fee')?.value);
+        if (!amount || amount <= 0) {
+          Utils.showToast('Vui lòng nhập số tiền sách hợp lệ', 'error');
+          return false;
+        }
+
+        // Update the report row note
+        const row = this.state.reportRows.find(r => r.mshs === mshs);
+        if (row) {
+          const bookNote = `📚 Tiền sách: ${Utils.formatCurrency(amount)}`;
+          row.ghiChu = row.ghiChu ? row.ghiChu + ' · ' + bookNote : bookNote;
+          row.tienSach = amount;
+          // Re-render report
+          this.renderReportTable(this.state.reportRows);
+        }
+
+        Utils.showToast(`Đã ghi nhận tiền sách ${Utils.formatCurrency(amount)} cho ${mshs}`, 'success');
+        return true;
+      }
+    );
   }
 };
 
