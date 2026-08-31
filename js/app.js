@@ -47,6 +47,8 @@ window.App = {
     this.loadSettingsUI();
     this.autoLoadMappings();
     this.checkExpiringPackages();
+    // Load prev invoice students from storage
+    this.state.prevInvoiceStudents = Storage._get('joy_prev_invoice_students', []);
     console.log('Joy Fee Check initialized successfully.');
   },
 
