@@ -21,11 +21,14 @@ window.App = {
     ghiHDRows: [],
     selectedHDMSHS: new Set(),
     changeRecords: [],
+    prevInvoiceStudents: [],
+    currentInvoiceStudents: [],
     importStatus: {
       dsHocSinh: false,
       vietinBank: false,
       tpBank: false,
-      tienMat: false
+      tienMat: false,
+      prevInvoice: false
     },
     matchingDone: false
   },
