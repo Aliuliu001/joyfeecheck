@@ -187,6 +187,10 @@ window.Utils = {
       closeModal();
       if (onCancel) onCancel();
     };
+
+    // Reset confirm button state
+    newConfirmBtn.disabled = false;
+    newConfirmBtn.textContent = 'Xác nhận';
     
     newConfirmBtn.onclick = () => {
       if (onConfirm) {

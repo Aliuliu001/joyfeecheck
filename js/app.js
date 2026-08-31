@@ -882,7 +882,14 @@ window.App = {
     // Check which tab is currently active and re-render it
     const exceptionTab = document.getElementById('exception-tab');
     if (exceptionTab && exceptionTab.classList.contains('active')) {
-      this.renderExceptions();
+      // Re-render exceptions with current state
+      const newSTKs = this.state.vtbUnmatched.filter(t => !t.matchedMSHS);
+      this.renderExceptions(newSTKs, this.state.tpbUnmatched);
+    }
+    // Also re-render report if visible
+    const reportTab = document.getElementById('report-tab');
+    if (reportTab && reportTab.classList.contains('active')) {
+      this.renderReportTable(this.state.reportRows);
     }
   },
 
