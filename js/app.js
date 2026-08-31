@@ -124,6 +124,10 @@ window.App = {
           indicator.style.left = btn.offsetLeft + 'px';
           indicator.style.width = btn.offsetWidth + 'px';
         }
+        // Render undo button when exception tab is shown
+        if (tabId === 'exception-tab') {
+          this.renderUndoButton();
+        }
       });
     });
 
@@ -924,14 +928,56 @@ window.App = {
   skipTPB: function(txIndex) {
     const tx = this.state.tpbUnmatched[txIndex];
     if (!tx) return;
-    const skipped = Storage._get('joy_skipped_tpb', []);
     const key = `${tx.date}_${tx.credit}_${tx.explanation}`;
+    
+    // Thêm vào danh sách bỏ qua
+    const skipped = Storage._get('joy_skipped_tpb', []);
     if (!skipped.some(s => s.key === key)) {
       skipped.push({ key, date: tx.date, credit: tx.credit, explanation: tx.explanation, skippedDate: new Date().toISOString() });
       Storage._set('joy_skipped_tpb', skipped);
     }
-    Utils.showToast('Đã bỏ qua giao dịch này', 'success');
+    
+    // Xóa khỏi danh sách hiện tại để index không bị lệch
+    this.state.tpbUnmatched.splice(txIndex, 1);
+    
+    Utils.showToast('Đã bỏ qua. Nhấn "Hoàn tác" nếu nhầm.', 'success');
     this.renderCurrentTab();
+    this.renderUndoButton();
+  },
+
+  // Hoàn tác giao dịch vừa bỏ qua
+  undoSkipTPB: function() {
+    const skipped = Storage._get('joy_skipped_tpb', []);
+    if (skipped.length === 0) {
+      Utils.showToast('Không có giao dịch nào để hoàn tác', 'warning');
+      return;
+    }
+    // Lấy giao dịch vừa bỏ qua gần nhất
+    const lastSkipped = skipped.pop();
+    Storage._set('joy_skipped_tpb', skipped);
+    
+    // Thêm lại vào danh sách hiện tại
+    this.state.tpbUnmatched.push({
+      date: lastSkipped.date,
+      credit: lastSkipped.credit,
+      explanation: lastSkipped.explanation
+    });
+    
+    Utils.showToast('Đã hoàn tác giao dịch', 'success');
+    this.renderCurrentTab();
+    this.renderUndoButton();
+  },
+
+  renderUndoButton: function() {
+    const skipped = Storage._get('joy_skipped_tpb', []);
+    const undoContainer = document.getElementById('undo-container');
+    if (undoContainer) {
+      if (skipped.length > 0) {
+        undoContainer.innerHTML = `<button class="btn btn-sm btn-warning" onclick="App.undoSkipTPB()">↩ Hoàn tác bỏ qua</button>`;
+      } else {
+        undoContainer.innerHTML = '';
+      }
+    }
   },
 
   // ========================
