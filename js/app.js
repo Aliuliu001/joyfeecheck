@@ -913,6 +913,7 @@ window.App = {
       try {
         const ds = await Importer.parseGoogleSheets(file);
         const students = ds.students || ds;
+        
         // Trích MSHS có cờ ghi HĐ (cột ghiChuGiaDinh chứa 'ghi hd' / 'hóa đơn')
         const hdList = students
           .filter(s => {
@@ -920,15 +921,30 @@ window.App = {
             return note.includes('ghi hd') || note.includes('hoá đơn') || note.includes('hóa đơn');
           })
           .map(s => s.mshs);
+        
+        // Lưu danh sách học sinh tháng trước
         const monthYear = document.getElementById('month-selector')?.value || '';
         Storage.savePrevMonthDS(students, { month: monthYear + ' (Kế toán T)', savedDate: new Date().toISOString() });
         Storage.savePrevMonthHD(hdList);
+        
+        // Lưu thêm trạng thái đóng tiền của từng bé (nếu có trong file)
+        const paymentStatus = {};
+        students.forEach(s => {
+          if (s.mshs) {
+            paymentStatus[s.mshs] = {
+              hocPhi: s.hocPhi || 0,
+              trangThai: s.ghiChuGiaDinh || ''
+            };
+          }
+        });
+        Storage._set('joy_prev_month_payment_status', paymentStatus);
+        
         Storage.addHistory({
           date: new Date().toISOString(),
           action: 'Nhập DS Kế toán tháng trước',
           detail: `${students.length} HS, ${hdList.length} ghi HĐ`
         });
-        Utils.showToast(`Đã nhập DS tháng trước: ${students.length} HS (${hdList.length} ghi HĐ)`, 'success');
+        Utils.showToast(`Đã nhập DS tháng trước: ${students.length} HS (${hdList.length} ghi HĐ). Tab "Thay đổi" sẽ hiển thị so sánh.`, 'success');
         this.loadSettingsUI();
       } catch (err) {
         Utils.showToast(`Lỗi đọc file: ${err.message}`, 'error');
