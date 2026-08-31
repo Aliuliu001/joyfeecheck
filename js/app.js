@@ -1213,6 +1213,17 @@ window.App = {
         prevAccountingStatus.className = 'badge warning';
       }
     }
+    const prevInvoiceStatus = document.getElementById('status-prev-invoice');
+    if (prevInvoiceStatus) {
+      const prevInvStudents = Storage._get('joy_prev_invoice_students', []);
+      if (prevInvStudents.length > 0) {
+        prevInvoiceStatus.textContent = `Đã có (${prevInvStudents.length} HS)`;
+        prevInvoiceStatus.className = 'badge success';
+      } else {
+        prevInvoiceStatus.textContent = 'Chưa có';
+        prevInvoiceStatus.className = 'badge warning';
+      }
+    }
     if (lastBackup) {
       lastBackup.textContent = info.lastHistoryDate || 'Chưa có';
     }
