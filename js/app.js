@@ -759,8 +759,10 @@ window.App = {
           detail: `${mshs} ← STK ${stk} (${tenTK})`
         });
         Utils.showToast(`Đã gán STK ${stk} → ${mshs}${isPreviousMonth ? ' (thuộc tháng trước)' : ''}`, 'success');
-        this.runMatching(false); // Re-run matching nhưng giữ nguyên tab Ngoại lệ nếu còn
-        this.loadSettingsUI();
+        // Run matching in background WITHOUT showing loading overlay
+        setTimeout(() => {
+          this.runMatchingBackground();
+        }, 100);
         return true;
       }
     );
@@ -829,11 +831,59 @@ window.App = {
           detail: `${mshs} ← "${keyword || tx.explanation.substring(0, 40)}..."`
         });
         Utils.showToast(`Đã gán GD TPBank → ${mshs}${isPreviousMonth ? ' (thuộc tháng trước)' : ''}`, 'success');
-        this.runMatching(false); // Re-run matching nhưng giữ nguyên tab Ngoại lệ nếu còn
-        this.loadSettingsUI();
+        // Run matching in background WITHOUT showing loading overlay
+        setTimeout(() => {
+          this.runMatchingBackground();
+        }, 100);
         return true;
       }
     );
+  },
+
+  // Background matching - không hiện loading overlay
+  runMatchingBackground: async function() {
+    try {
+      const stkPhu = Storage.loadSTKPhu() || [];
+      const keywords = Storage.loadKeywords() || [];
+
+      if (this.state.vtbTransactions.length > 0) {
+        const vtbResult = Matcher.matchVietinBank(this.state.vtbTransactions, this.state.students, stkPhu);
+        this.state.vtbMatched = vtbResult.matched;
+        this.state.vtbUnmatched = vtbResult.unmatched;
+      }
+
+      if (this.state.tpbTransactions.length > 0) {
+        const tpbResult = Matcher.matchTPBank(this.state.tpbTransactions, keywords, this.state.students);
+        this.state.tpbMatched = tpbResult.matched;
+        this.state.tpbUnmatched = tpbResult.unmatched;
+      }
+
+      let paymentsByMSHS = Matcher.aggregateByMSHS(
+        this.state.vtbMatched,
+        this.state.tpbMatched,
+        this.state.cashPayments
+      );
+
+      const familyGroups = Storage.loadFamilyGroups();
+      if (familyGroups && familyGroups.length > 0) {
+        paymentsByMSHS = Matcher.distributeByFamily(paymentsByMSHS, this.state.students, familyGroups);
+      }
+
+      this.state.reportRows = Reporter.generateReport(this.state.students, paymentsByMSHS, familyGroups, this.state.monthYear || '');
+
+      // Re-render current tab
+      this.renderCurrentTab();
+    } catch (e) {
+      console.error('Background matching error:', e);
+    }
+  },
+
+  renderCurrentTab: function() {
+    // Check which tab is currently active and re-render it
+    const exceptionTab = document.getElementById('exception-tab');
+    if (exceptionTab && exceptionTab.classList.contains('active')) {
+      this.renderExceptions();
+    }
   },
 
   // ========================
