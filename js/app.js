@@ -1103,28 +1103,28 @@ window.App = {
         <input type="text" id="input-fg-name" class="form-control" placeholder="VD: Nhà Cô Lan">
       </div>
       <div class="form-group mb-3">
-        <label>Tên Chủ tài khoản / Tên PH (bắt buộc)</label>
-        <input type="text" id="input-fg-ten" class="form-control" placeholder="Tên phụ huynh (VD: NGUYEN THI THUY DUONG)">
-      </div>
-      <div class="form-group mb-3">
-        <label>STK Đại diện (tùy chọn — bỏ trống nếu CK qua TPBank)</label>
-        <input type="text" id="input-fg-stk" class="form-control" placeholder="VD: 5491205278990 (không bắt buộc)">
-      </div>
-      <div class="form-group mb-3">
-        <label>Danh sách MSHS của các con</label>
+        <label>Danh sách MSHS của các con (bắt buộc)</label>
         <input type="text" id="input-fg-members" class="form-control" placeholder="Cách nhau dấu phẩy (VD: HV011, HV012)">
       </div>
+      <div class="form-group mb-3">
+        <label>Tên PH / Chủ tài khoản (tùy chọn)</label>
+        <input type="text" id="input-fg-ten" class="form-control" placeholder="Tên phụ huynh nếu biết">
+      </div>
+      <div class="form-group mb-3">
+        <label>STK Đại diện (tùy chọn)</label>
+        <input type="text" id="input-fg-stk" class="form-control" placeholder="Bỏ trống nếu CK qua TPBank/Zalo">
+      </div>
       <p class="text-sm text-secondary">Khi phụ huynh này CK, hệ thống sẽ tự chia đều cho các MSHS trên dựa theo mức học phí của từng bé.</p>
-      <p class="text-sm text-secondary">💡 Nếu CK qua TPBank (không thấy STK), chỉ cần nhập Tên PH + MSHS là đủ.</p>
+      <p class="text-sm text-secondary">💡 Chỉ cần nhập MSHS là đủ. Tên PH và STK là thông tin bổ sung, không bắt buộc.</p>
       `,
       () => {
         const groupName = document.getElementById('input-fg-name').value.trim();
+        const membersRaw = document.getElementById('input-fg-members').value.trim();
         const tenPH = document.getElementById('input-fg-ten').value.trim();
         const stkDaiDien = document.getElementById('input-fg-stk').value.trim();
-        const membersRaw = document.getElementById('input-fg-members').value.trim();
 
-        if (!groupName || !tenPH || !membersRaw) {
-          Utils.showToast('Vui lòng nhập Tên nhóm, Tên PH và MSHS', 'error');
+        if (!groupName || !membersRaw) {
+          Utils.showToast('Vui lòng nhập Tên nhóm và MSHS các con', 'error');
           return false;
         }
 
@@ -1136,8 +1136,8 @@ window.App = {
 
         Storage.addFamilyGroup({
           groupName,
-          stkDaiDien: stkDaiDien || tenPH, // Nếu không có STK thì dùng tên PH làm key
-          tenPH,
+          stkDaiDien: stkDaiDien || tenPH || groupName,
+          tenPH: tenPH || '',
           members
         });
 
