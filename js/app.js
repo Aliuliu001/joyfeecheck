@@ -665,6 +665,10 @@ window.App = {
         return { icon: '🔄', label: 'Đổi lớp', rowClass: 'change-class' };
       case APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER:
         return { icon: '💳', label: 'CK vào TK CT', rowClass: 'change-company' };
+      case 'giam_hoa_don':
+        return { icon: '📋', label: 'Giảm HĐ', rowClass: 'change-quit' };
+      case 'tang_hoa_don':
+        return { icon: '📋', label: 'Tăng HĐ', rowClass: 'change-new' };
       default:
         return { icon: '❓', label: type, rowClass: '' };
     }
