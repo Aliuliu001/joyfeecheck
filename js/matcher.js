@@ -136,6 +136,7 @@ window.Matcher = {
     });
     // Sắp xếp keyword theo độ dài giảm dần (ưu tiên khớp từ dài trước)
     const sortedKw = [...kwGroups.keys()].sort((a, b) => b.length - a.length);
+    console.log(`[MATCH] Keywords loaded: ${sortedKw.length}`, sortedKw);
 
     transactions.forEach(tx => {
       const normDesc = Utils.normalizeText(tx.explanation);
@@ -143,6 +144,7 @@ window.Matcher = {
 
       for (const normKw of sortedKw) {
         if (normDesc.includes(normKw)) {
+          console.log(`[MATCH] "${normKw}" found in "${normDesc}"`);
           const members = kwGroups.get(normKw);
           tx.matchSource = 'keyword';
           tx.matchedKeyword = members[0].keyword;
@@ -174,6 +176,7 @@ window.Matcher = {
       }
 
       if (!found) {
+        console.log(`[NO MATCH] No keyword found for "${normDesc.substring(0, 50)}..."`);
         // Thử khớp bằng Tên chủ TK đối ứng (khi PH ghi sai/nợ nội dung, app vẫn nhận diện được)
         if (tx.tenTKDoiUng) {
           const normTenTK = Utils.normalizeText(tx.tenTKDoiUng);
