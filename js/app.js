@@ -579,7 +579,7 @@ window.App = {
             <td>
               <button class="btn btn-sm btn-primary" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', false)">Gán MSHS</button>
               <button class="btn btn-sm btn-warning" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', true)">📅 Tháng trước</button>
-              <button class="btn btn-sm btn-outline" onclick="App.skipTPB(${idx})">Bỏ qua</button>
+              <button class="btn btn-sm btn-outline" onclick="App.skipTPB('${t.date}_${t.credit}_${t.explanation}')">Bỏ qua</button>
             </td>
           </tr>`;
         }).join('');
@@ -791,6 +791,7 @@ window.App = {
   assignTPBToMSHS: function(txIndex, suggestedMSHS, suggestedName, isPreviousMonth) {
     const tx = this.state.tpbUnmatched[txIndex];
     if (!tx) return;
+    this._currentAssignTx = tx; // Store for keyword matching
 
     const title = isPreviousMonth ? 'Gán GD TPBank (📅 Tháng trước)' : 'Gán GD TPBank cho Học sinh';
     const extraNote = isPreviousMonth ? '<p style="color:var(--warning-color); font-weight:bold;">⚠ Khoản này sẽ được tính vào tháng TRƯỚC, không tính vào tháng đang đối soát.</p>' : '';
@@ -925,20 +926,19 @@ window.App = {
   },
 
   // Bỏ qua giao dịch TPBank (lưu vào storage để không hiện lại)
-  skipTPB: function(txIndex) {
-    const tx = this.state.tpbUnmatched[txIndex];
+  skipTPB: function(txKey) {
+    const tx = this.state.tpbUnmatched.find(t => `${t.date}_${t.credit}_${t.explanation}` === txKey);
     if (!tx) return;
-    const key = `${tx.date}_${tx.credit}_${tx.explanation}`;
     
     // Thêm vào danh sách bỏ qua
     const skipped = Storage._get('joy_skipped_tpb', []);
-    if (!skipped.some(s => s.key === key)) {
-      skipped.push({ key, date: tx.date, credit: tx.credit, explanation: tx.explanation, skippedDate: new Date().toISOString() });
+    if (!skipped.some(s => s.key === txKey)) {
+      skipped.push({ key: txKey, date: tx.date, credit: tx.credit, explanation: tx.explanation, skippedDate: new Date().toISOString() });
       Storage._set('joy_skipped_tpb', skipped);
     }
     
-    // Xóa khỏi danh sách hiện tại để index không bị lệch
-    this.state.tpbUnmatched.splice(txIndex, 1);
+    // Xóa khỏi danh sách hiện tại
+    this.state.tpbUnmatched = this.state.tpbUnmatched.filter(t => `${t.date}_${t.credit}_${t.explanation}` !== txKey);
     
     Utils.showToast('Đã bỏ qua. Nhấn "Hoàn tác" nếu nhầm.', 'success');
     this.renderCurrentTab();
@@ -956,12 +956,15 @@ window.App = {
     const lastSkipped = skipped.pop();
     Storage._set('joy_skipped_tpb', skipped);
     
-    // Thêm lại vào danh sách hiện tại
-    this.state.tpbUnmatched.push({
-      date: lastSkipped.date,
-      credit: lastSkipped.credit,
-      explanation: lastSkipped.explanation
-    });
+    // Thêm lại vào danh sách hiện tại (nếu chưa có)
+    const exists = this.state.tpbUnmatched.some(t => `${t.date}_${t.credit}_${t.explanation}` === lastSkipped.key);
+    if (!exists) {
+      this.state.tpbUnmatched.push({
+        date: lastSkipped.date,
+        credit: lastSkipped.credit,
+        explanation: lastSkipped.explanation
+      });
+    }
     
     Utils.showToast('Đã hoàn tác giao dịch', 'success');
     this.renderCurrentTab();
