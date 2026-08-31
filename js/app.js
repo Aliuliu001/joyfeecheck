@@ -43,6 +43,7 @@ window.App = {
     this.setupFilters();
     this.loadSettingsUI();
     this.autoLoadMappings();
+    this.checkExpiringPackages();
     console.log('Joy Fee Check initialized successfully.');
   },
 
@@ -64,6 +65,26 @@ window.App = {
     } catch (e) {
       console.log('Không tìm thấy file shared_data/joy_mappings.json hoặc có lỗi đọc file');
     }
+  },
+
+  // Kiểm tra gói đóng sắp hết hạn
+  checkExpiringPackages: function() {
+    const packages = Storage.loadPackages() || [];
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    packages.forEach(pkg => {
+      if (!pkg.endMonth) return;
+      const [endYear, endMon] = pkg.endMonth.split('-').map(Number);
+      const endDate = new Date(endYear, endMon);
+      const monthsLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24 * 30));
+      
+      if (monthsLeft <= 1 && monthsLeft >= 0) {
+        // Gói sắp hết hạn - hiển thị cảnh báo
+        const memberNames = pkg.members.join(', ');
+        Utils.showToast(`⚠ Gói "${pkg.packageName}" sắp hết hạn (${pkg.endMonth})! Thành viên: ${memberNames}. Phụ huynh cần đóng thêm.`, 'warning');
+      }
+    });
   },
 
   setupDate: function() {
