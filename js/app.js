@@ -277,7 +277,6 @@ window.App = {
     document.getElementById('check-all-invoice')?.addEventListener('change', (e) => this.toggleAllInvoice(e.target.checked));
 
     // Settings buttons
-    document.getElementById('btn-import-prev-month')?.addEventListener('click', () => this.importPrevMonthExcel());
     document.getElementById('btn-set-prev-month')?.addEventListener('click', () => this.savePrevMonth());
     document.getElementById('btn-export-stkphu')?.addEventListener('click', () => this.exportSTKPhu());
     document.getElementById('btn-export-backup')?.addEventListener('click', () => this.exportBackup());
