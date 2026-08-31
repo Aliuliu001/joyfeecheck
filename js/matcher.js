@@ -89,6 +89,23 @@ window.Matcher = {
         }
         found = true;
       }
+      // 3. Quét nội dung/mô tả giao dịch VietinBank khớp với tên học sinh đầy đủ hoặc mã học sinh
+      else {
+        const descText = Utils.normalizeText(tx.description || '');
+        if (descText) {
+          for (const s of students) {
+            const normName = Utils.normalizeText(s.fullName || '');
+            const normMSHS = Utils.normalizeText(s.mshs || '');
+            if ((normName && descText.includes(normName)) || (normMSHS && descText.includes(normMSHS))) {
+              tx.matchedMSHS = s.mshs;
+              tx.matchSource = 'vtb_description';
+              matched.push(tx);
+              found = true;
+              break;
+            }
+          }
+        }
+      }
 
       if (!found) {
         unmatched.push(tx);
