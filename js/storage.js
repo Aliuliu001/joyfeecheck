@@ -210,7 +210,7 @@ window.Storage = {
       const pkgEnd = pkgStart + (pkg.months || 1) - 1;
       const cur = curYear * 12 + curMonth;
       if (cur >= pkgStart && cur <= pkgEnd) {
-        return { active: true, packageName: pkg.packageName || pkg.groupName, startMonth: pkg.startMonth, endMonth: pkg.endMonth || '' };
+        return { active: true, packageName: pkg.packageName || pkg.groupName, startMonth: pkg.startMonth, endMonth: pkg.endMonth || '', discountPercent: pkg.discountPercent || 0 };
       }
     }
     return { active: false };

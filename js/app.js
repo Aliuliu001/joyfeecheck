@@ -1060,16 +1060,32 @@ window.App = {
     const pkgTbody = document.querySelector('#table-packages tbody');
     if (pkgTbody) {
       if (packages.length === 0) {
-        pkgTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Chưa có gói đóng học phí nào</td></tr>';
+        pkgTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-secondary)">Chưa có gói đóng học phí nào</td></tr>';
       } else {
-        pkgTbody.innerHTML = packages.map(p => `<tr>
-          <td>${p.packageName}</td>
-          <td>${p.members.join(', ')}</td>
-          <td>${p.months} tháng</td>
-          <td>${p.startMonth}</td>
-          <td>${p.endMonth}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="App.deletePackage('${p.packageId}')">Xóa</button></td>
-        </tr>`).join('');
+        pkgTbody.innerHTML = packages.map(p => {
+          // Calculate discount amount per student per month
+          const hpDefault = APP_CONFIG.DEFAULT_HOC_PHI || 800000;
+          const discountPerMonth = Math.floor(hpDefault * (p.discountPercent || 0) / 100);
+          const totalDiscount = discountPerMonth * (p.months || 1) * p.members.length;
+          
+          // Check if package is expiring soon (last month)
+          const now = new Date();
+          const [endYear, endMon] = (p.endMonth || '').split('-').map(Number);
+          const endDate = new Date(endYear, endMon);
+          const monthsLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24 * 30));
+          const isExpiring = monthsLeft <= 1 && monthsLeft >= 0;
+          
+          return `<tr style="${isExpiring ? 'background: rgba(255,193,7,0.1);' : ''}">
+            <td>${p.packageName} ${isExpiring ? '<span style="color:var(--warning-color);">⚠ Hết hạn</span>' : ''}</td>
+            <td>${p.members.join(', ')}</td>
+            <td>${p.months} tháng</td>
+            <td>${p.discountPercent || 0}%</td>
+            <td class="number">${Utils.formatCurrency(totalDiscount)}</td>
+            <td>${p.startMonth}</td>
+            <td>${p.endMonth}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="App.deletePackage('${p.packageId}')">Xóa</button></td>
+          </tr>`;
+        }).join('');
       }
     }
 
@@ -1289,6 +1305,8 @@ window.App = {
   // ========================
   addPackageUI: function() {
     const monthYear = document.getElementById('input-month')?.value || '';
+    const discount6 = document.getElementById('input-pkg-discount-6')?.value || 6;
+    const discount12 = document.getElementById('input-pkg-discount-12')?.value || 12;
     Utils.showModal(
       'Thêm Gói Đóng Góc Học Phí',
       `
@@ -1302,13 +1320,16 @@ window.App = {
       </div>
       <div class="form-group mb-3">
         <label>Số tháng đóng trước</label>
-        <input type="number" id="input-pkg-months" class="form-control" placeholder="VD: 6 hoặc 12" min="1" max="24" value="6">
+        <select id="input-pkg-months" class="form-control">
+          <option value="6">6 tháng (giảm ${discount6}%)</option>
+          <option value="12">12 tháng (giảm ${discount12}%)</option>
+        </select>
       </div>
       <div class="form-group mb-3">
         <label>Tháng bắt đầu (YYYY-MM)</label>
         <input type="text" id="input-pkg-start" class="form-control" placeholder="VD: 2026-08" value="${monthYear}">
       </div>
-      <p class="text-sm text-secondary">Hệ thống sẽ tự động ghi nhận các con đã đóng học phí cho tất cả các tháng trong gói.</p>
+      <p class="text-sm text-secondary">Hệ thống sẽ tự động ghi nhận các con đã đóng học phí + giảm giá cho tất cả các tháng trong gói.</p>
       `,
       () => {
         const packageName = document.getElementById('input-pkg-name').value.trim();
@@ -1333,17 +1354,21 @@ window.App = {
           return false;
         }
 
-        // Calculate end month
+        // Calculate end month and discount
         const [startYear, startMon] = startMonth.split('-').map(Number);
         const endDate = new Date(startYear, startMon - 1 + months);
         const endMonth = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        // Get discount percentage based on months
+        const discountPercent = months >= 12 ? parseFloat(discount12) : parseFloat(discount6);
 
         Storage.addPackage({
           packageName,
           members,
           months,
           startMonth,
-          endMonth
+          endMonth,
+          discountPercent
         });
 
         Utils.showToast(`Đã thêm gói "${packageName}" cho ${members.length} bé, ${months} tháng`, 'success');

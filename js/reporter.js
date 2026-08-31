@@ -68,7 +68,9 @@ window.Reporter = {
       
       // 0. Đóng gói
       if (packageInfo.active) {
-        notes.push(`📦 Đã đóng gói: ${packageInfo.packageName} (${packageInfo.startMonth} → ${packageInfo.endMonth})`);
+        const discountPercent = packageInfo.discountPercent || 0;
+        const discountAmount = Math.floor(tongHocPhi * discountPercent / 100);
+        notes.push(`📦 Đã đóng gói: ${packageInfo.packageName} (${packageInfo.startMonth} → ${packageInfo.endMonth})${discountPercent > 0 ? ` — Giảm ${discountPercent}% (${Utils.formatCurrency(discountAmount)}/tháng)` : ''}`);
       }
       
       // 1. CK VietinBank khác mức học phí quy định (cảnh báo hụt HĐ)
