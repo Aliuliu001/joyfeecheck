@@ -10,7 +10,7 @@ window.Reporter = {
    * @param {Map} paymentsByMSHS - Map of MSHS -> {vtb, tpb, cash, total}
    * @returns {Array} Array of REPORT_ROW objects
    */
-  generateReport(students, paymentsByMSHS, familyGroups = []) {
+  generateReport(students, paymentsByMSHS, familyGroups = [], monthYear = '') {
     const reportRows = [];
     const grouped = new Map();
 
@@ -41,10 +41,15 @@ window.Reporter = {
       
       const paymentData = paymentsByMSHS.get(mshs) || { vtb: 0, tpb: 0, cash: 0, total: 0 };
       
+      // Check if student has active package
+      const packageInfo = Storage.isPackageActive(mshs, monthYear);
       let trangThai = '';
       let soTienThieu = 0;
       
-      if (paymentData.total >= tongHocPhi && tongHocPhi > 0) {
+      if (packageInfo.active) {
+        // Student has paid via package
+        trangThai = APP_CONFIG.STATUS.PACKAGE;
+      } else if (paymentData.total >= tongHocPhi && tongHocPhi > 0) {
         trangThai = paymentData.total > tongHocPhi ? APP_CONFIG.STATUS.OVERPAID : APP_CONFIG.STATUS.PAID;
       } else if (paymentData.total > 0 && paymentData.total < tongHocPhi) {
         trangThai = APP_CONFIG.STATUS.PARTIAL;
@@ -60,6 +65,11 @@ window.Reporter = {
       // Tạo Ghi Chú Tự Động
       // ==========================
       let notes = [];
+      
+      // 0. Đóng gói
+      if (packageInfo.active) {
+        notes.push(`📦 Đã đóng gói: ${packageInfo.packageName} (${packageInfo.startMonth} → ${packageInfo.endMonth})`);
+      }
       
       // 1. CK VietinBank khác mức học phí quy định (cảnh báo hụt HĐ)
       if (paymentData.vtb > 0 && paymentData.vtb !== tongHocPhi) {
@@ -120,6 +130,7 @@ window.Reporter = {
       chuaDong: 0,
       dongThieu: 0,
       dongDu: 0,
+      dongGoi: 0,
       tongThu: 0,
       tongHocPhi: 0
     };
@@ -140,6 +151,9 @@ window.Reporter = {
           break;
         case APP_CONFIG.STATUS.OVERPAID:
           stats.dongDu++;
+          break;
+        case APP_CONFIG.STATUS.PACKAGE:
+          stats.dongGoi++;
           break;
       }
     }

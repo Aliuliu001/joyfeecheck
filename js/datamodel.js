@@ -138,7 +138,9 @@ const APP_CONFIG = {
     SYNC_CHANGES: 'joy_sync_changes',
     HISTORY: 'joy_history',
     SETTINGS: 'joy_settings',
-    FAMILY_GROUPS: 'joy_family_groups'
+    FAMILY_GROUPS: 'joy_family_groups',
+    PREV_MONTH_PAYMENTS: 'joy_prev_month_payments',
+    PACKAGES: 'joy_packages'
   },
 
   // Default hoc phi
@@ -150,7 +152,8 @@ const APP_CONFIG = {
     PAID: 'Đã đóng',
     UNPAID: 'Chưa đóng', 
     PARTIAL: 'Đóng thiếu',
-    OVERPAID: 'Đóng dư'
+    OVERPAID: 'Đóng dư',
+    PACKAGE: '📦 Đã đóng gói'
   },
 
   // Change types

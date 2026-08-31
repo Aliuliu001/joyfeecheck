@@ -218,6 +218,13 @@
             <span class="card-value" id="sum-overpaid">0</span>
           </div>
         </div>
+        <div class="summary-card card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <div class="card-icon">📦</div>
+          <div class="card-info">
+            <span class="card-label">Đóng gói</span>
+            <span class="card-value" id="sum-package">0</span>
+          </div>
+        </div>
         <div class="summary-card card purple">
           <div class="card-icon">💰</div>
           <div class="card-info">
@@ -432,6 +439,30 @@
                   <th>STK Đại diện</th>
                   <th>Tên PH</th>
                   <th>Thành viên (MSHS)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Package payments -->
+        <div class="card glass-card span-2" style="grid-column: 1 / -1;">
+          <div class="flex-between">
+            <h3>📦 Đóng gói học phí (nhiều tháng)</h3>
+            <button id="btn-add-package" class="btn btn-primary btn-sm">➕ Thêm gói</button>
+          </div>
+          <p class="text-sm text-secondary mt-2">Ghi nhận khi phụ huynh đóng trước nhiều tháng (6 tháng, 1 năm...). Hệ thống sẽ tự động ghi nhận bé đã đóng cho các tháng tương ứng, không báo "chưa đóng".</p>
+          <div class="table-container compact-table mt-3">
+            <table id="table-packages">
+              <thead>
+                <tr>
+                  <th>Tên gói</th>
+                  <th>Thành viên (MSHS)</th>
+                  <th>Số tháng</th>
+                  <th>Từ tháng</th>
+                  <th>Đến tháng</th>
                   <th></th>
                 </tr>
               </thead>

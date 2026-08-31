@@ -255,6 +255,7 @@ window.App = {
 
     // Family Group button
     document.getElementById('btn-add-family')?.addEventListener('click', () => this.addFamilyGroupUI());
+    document.getElementById('btn-add-package')?.addEventListener('click', () => this.addPackageUI());
   },
 
   // ========================
@@ -320,7 +321,7 @@ window.App = {
       }
 
       // 4. Generate report
-      this.state.reportRows = Reporter.generateReport(this.state.students, paymentsByMSHS, familyGroups);
+      this.state.reportRows = Reporter.generateReport(this.state.students, paymentsByMSHS, familyGroups, this.state.monthYear || '');
       const stats = Reporter.getStatistics(this.state.reportRows);
 
       // 5. Generate accounting
@@ -386,6 +387,7 @@ window.App = {
     document.getElementById('sum-unpaid').textContent = stats.chuaDong || 0;
     document.getElementById('sum-partial').textContent = stats.dongThieu || 0;
     document.getElementById('sum-overpaid').textContent = stats.dongDu || 0;
+    document.getElementById('sum-package').textContent = stats.dongGoi || 0;
     document.getElementById('sum-total-money').textContent = Utils.formatCurrency(stats.tongThu || 0) + ' ₫';
   },
 
@@ -481,7 +483,8 @@ window.App = {
             <td class="number">${Utils.formatCurrency(s.totalAmount)}</td>
             <td class="suggestion">${suggestText}</td>
             <td>
-              <button class="btn btn-sm btn-primary" onclick="App.assignSTKToMSHS('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}')">Gán MSHS</button>
+              <button class="btn btn-sm btn-primary" onclick="App.assignSTKToMSHS('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', false)">Gán MSHS</button>
+              <button class="btn btn-sm btn-warning" onclick="App.assignSTKToMSHS('${s.stk.replace(/'/g, "\\'")}', '${s.tenTK.replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', true)">📅 Tháng trước</button>
               <button class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">Bỏ qua</button>
             </td>
           </tr>`;
@@ -508,7 +511,8 @@ window.App = {
             <td class="number">${Utils.formatCurrency(t.credit)}</td>
             <td class="suggestion">${suggestText}</td>
             <td>
-              <button class="btn btn-sm btn-primary" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}')">Gán MSHS</button>
+              <button class="btn btn-sm btn-primary" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', false)">Gán MSHS</button>
+              <button class="btn btn-sm btn-warning" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', true)">📅 Tháng trước</button>
               <button class="btn btn-sm btn-outline" onclick="this.closest('tr').remove()">Bỏ qua</button>
             </td>
           </tr>`;
@@ -650,10 +654,13 @@ window.App = {
   // ========================
   // ACTIONS: Assign STK → MSHS
   // ========================
-  assignSTKToMSHS: function(stk, tenTK, suggestedMSHS, suggestedName) {
+  assignSTKToMSHS: function(stk, tenTK, suggestedMSHS, suggestedName, isPreviousMonth) {
+    const title = isPreviousMonth ? 'Gán STK cho Học sinh (📅 Tháng trước)' : 'Gán STK cho Học sinh';
+    const extraNote = isPreviousMonth ? '<p style="color:var(--warning-color); font-weight:bold;">⚠ Khoản này sẽ được tính vào tháng TRƯỚC, không tính vào tháng đang đối soát.</p>' : '';
     Utils.showModal(
-      'Gán STK cho Học sinh',
+      title,
       `<p>STK: <strong>${stk}</strong> (${tenTK})</p>
+       ${extraNote}
        <div class="form-group mt-3">
          <label>Nhập MSHS (vd: HV001):</label>
          <input type="text" id="input-assign-mshs" class="form-input" placeholder="HVxxx" value="${(suggestedMSHS||'').replace(/"/g, '&quot;')}" autofocus>
@@ -667,7 +674,7 @@ window.App = {
         const name = document.getElementById('input-assign-name')?.value?.trim();
         if (!mshs) {
           Utils.showToast('Vui lòng nhập MSHS', 'error');
-          return false; // Don't close modal
+          return false;
         }
         // Save to STK_PHU
         Storage.addSTKPhu({
@@ -677,20 +684,31 @@ window.App = {
           tenTK: tenTK,
           addedDate: new Date().toISOString()
         });
+        // Save previous month flag if needed
+        if (isPreviousMonth) {
+          Storage.addPreviousMonthPayment({
+            mshs: mshs.toUpperCase(),
+            stk: stk,
+            tenTK: tenTK,
+            amount: 0, // Will be filled by matching
+            source: 'vtb',
+            date: new Date().toISOString()
+          });
+        }
         // Add sync change
         Storage.addSyncChange({
           type: 'stk_phu_moi',
           mshs: mshs.toUpperCase(),
-          content: `STK: ${stk} - ${tenTK}`,
+          content: `STK: ${stk} - ${tenTK}${isPreviousMonth ? ' (📅 Tháng trước)' : ''}`,
           synced: false,
           date: new Date().toISOString()
         });
         Storage.addHistory({
           date: new Date().toISOString(),
-          action: 'Thêm STK phụ',
+          action: isPreviousMonth ? 'Thêm STK phụ (Tháng trước)' : 'Thêm STK phụ',
           detail: `${mshs} ← STK ${stk} (${tenTK})`
         });
-        Utils.showToast(`Đã gán STK ${stk} → ${mshs}`, 'success');
+        Utils.showToast(`Đã gán STK ${stk} → ${mshs}${isPreviousMonth ? ' (thuộc tháng trước)' : ''}`, 'success');
         this.runMatching(false); // Re-run matching nhưng giữ nguyên tab Ngoại lệ nếu còn
         this.loadSettingsUI();
         return true;
@@ -698,14 +716,17 @@ window.App = {
     );
   },
 
-  assignTPBToMSHS: function(txIndex, suggestedMSHS, suggestedName) {
+  assignTPBToMSHS: function(txIndex, suggestedMSHS, suggestedName, isPreviousMonth) {
     const tx = this.state.tpbUnmatched[txIndex];
     if (!tx) return;
 
+    const title = isPreviousMonth ? 'Gán GD TPBank (📅 Tháng trước)' : 'Gán GD TPBank cho Học sinh';
+    const extraNote = isPreviousMonth ? '<p style="color:var(--warning-color); font-weight:bold;">⚠ Khoản này sẽ được tính vào tháng TRƯỚC, không tính vào tháng đang đối soát.</p>' : '';
     Utils.showModal(
-      'Gán GD TPBank cho Học sinh',
+      title,
       `<p>Nội dung: <strong>${tx.explanation}</strong></p>
        <p>Số tiền: <strong>${Utils.formatCurrency(tx.credit)}</strong></p>
+       ${extraNote}
        <div class="form-group mt-3">
          <label>Nhập MSHS:</label>
          <input type="text" id="input-assign-mshs" class="form-input" placeholder="HVxxx" value="${(suggestedMSHS||'').replace(/"/g, '&quot;')}" autofocus>
@@ -736,17 +757,28 @@ window.App = {
           Storage.addSyncChange({
             type: 'keyword_moi',
             mshs: mshs.toUpperCase(),
-            content: `Keyword: "${keyword}"`,
+            content: `Keyword: "${keyword}"${isPreviousMonth ? ' (📅 Tháng trước)' : ''}`,
             synced: false,
+            date: new Date().toISOString()
+          });
+        }
+        // Save previous month flag if needed
+        if (isPreviousMonth) {
+          Storage.addPreviousMonthPayment({
+            mshs: mshs.toUpperCase(),
+            stk: '',
+            tenTK: name || '',
+            amount: tx.credit,
+            source: 'tpb',
             date: new Date().toISOString()
           });
         }
         Storage.addHistory({
           date: new Date().toISOString(),
-          action: 'Gán GD TPBank',
+          action: isPreviousMonth ? 'Gán GD TPBank (Tháng trước)' : 'Gán GD TPBank',
           detail: `${mshs} ← "${keyword || tx.explanation.substring(0, 40)}..."`
         });
-        Utils.showToast(`Đã gán GD TPBank → ${mshs}`, 'success');
+        Utils.showToast(`Đã gán GD TPBank → ${mshs}${isPreviousMonth ? ' (thuộc tháng trước)' : ''}`, 'success');
         this.runMatching(false); // Re-run matching nhưng giữ nguyên tab Ngoại lệ nếu còn
         this.loadSettingsUI();
         return true;
@@ -1018,6 +1050,24 @@ window.App = {
       }
     }
 
+    // Packages table
+    const packages = Storage.loadPackages() || [];
+    const pkgTbody = document.querySelector('#table-packages tbody');
+    if (pkgTbody) {
+      if (packages.length === 0) {
+        pkgTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Chưa có gói đóng học phí nào</td></tr>';
+      } else {
+        pkgTbody.innerHTML = packages.map(p => `<tr>
+          <td>${p.packageName}</td>
+          <td>${p.members.join(', ')}</td>
+          <td>${p.months} tháng</td>
+          <td>${p.startMonth}</td>
+          <td>${p.endMonth}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="App.deletePackage('${p.packageId}')">Xóa</button></td>
+        </tr>`).join('');
+      }
+    }
+
     // STK Phu table
     const stkPhu = Storage.loadSTKPhu() || [];
     const stkTbody = document.querySelector('#table-stk-mapping tbody');
@@ -1151,6 +1201,81 @@ window.App = {
   deleteFamilyGroup: function(groupId) {
     Storage.removeFamilyGroup(groupId);
     Utils.showToast('Đã xóa nhóm gia đình', 'success');
+    this.loadSettingsUI();
+  },
+
+  // ========================
+  // ACTIONS: Package Payments
+  // ========================
+  addPackageUI: function() {
+    const monthYear = document.getElementById('input-month')?.value || '';
+    Utils.showModal(
+      'Thêm Gói Đóng Góc Học Phí',
+      `
+      <div class="form-group mb-3">
+        <label>Tên gói (gợi nhớ)</label>
+        <input type="text" id="input-pkg-name" class="form-control" placeholder="VD: Gói 6 tháng Nhà Cô Lan">
+      </div>
+      <div class="form-group mb-3">
+        <label>Danh sách MSHS của các con (bắt buộc)</label>
+        <input type="text" id="input-pkg-members" class="form-control" placeholder="Cách nhau dấu phẩy (VD: HV011, HV012)">
+      </div>
+      <div class="form-group mb-3">
+        <label>Số tháng đóng trước</label>
+        <input type="number" id="input-pkg-months" class="form-control" placeholder="VD: 6 hoặc 12" min="1" max="24" value="6">
+      </div>
+      <div class="form-group mb-3">
+        <label>Tháng bắt đầu (YYYY-MM)</label>
+        <input type="text" id="input-pkg-start" class="form-control" placeholder="VD: 2026-08" value="${monthYear}">
+      </div>
+      <p class="text-sm text-secondary">Hệ thống sẽ tự động ghi nhận các con đã đóng học phí cho tất cả các tháng trong gói.</p>
+      `,
+      () => {
+        const packageName = document.getElementById('input-pkg-name').value.trim();
+        const membersRaw = document.getElementById('input-pkg-members').value.trim();
+        const months = parseInt(document.getElementById('input-pkg-months').value) || 6;
+        const startMonth = document.getElementById('input-pkg-start').value.trim();
+
+        if (!packageName || !membersRaw || !startMonth) {
+          Utils.showToast('Vui lòng nhập Tên gói, MSHS và Tháng bắt đầu', 'error');
+          return false;
+        }
+
+        // Validate month format
+        if (!/^\d{4}-\d{2}$/.test(startMonth)) {
+          Utils.showToast('Tháng bắt đầu phải có định dạng YYYY-MM (VD: 2026-08)', 'error');
+          return false;
+        }
+
+        const members = membersRaw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        if (members.length < 1) {
+          Utils.showToast('Vui lòng nhập ít nhất 1 MSHS', 'error');
+          return false;
+        }
+
+        // Calculate end month
+        const [startYear, startMon] = startMonth.split('-').map(Number);
+        const endDate = new Date(startYear, startMon - 1 + months);
+        const endMonth = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
+
+        Storage.addPackage({
+          packageName,
+          members,
+          months,
+          startMonth,
+          endMonth
+        });
+
+        Utils.showToast(`Đã thêm gói "${packageName}" cho ${members.length} bé, ${months} tháng`, 'success');
+        this.loadSettingsUI();
+        return true;
+      }
+    );
+  },
+
+  deletePackage: function(packageId) {
+    Storage.removePackage(packageId);
+    Utils.showToast('Đã xóa gói', 'success');
     this.loadSettingsUI();
   }
 };

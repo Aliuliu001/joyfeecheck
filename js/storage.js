@@ -158,6 +158,64 @@ window.Storage = {
     return count;
   },
 
+  // THANH TOÁN THÁNG TRƯỚC
+  addPreviousMonthPayment: function(payment) {
+    const list = this._get(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_PAYMENTS, []);
+    list.push({
+      ...payment,
+      id: 'PMP' + Date.now(),
+      date: new Date().toISOString()
+    });
+    this._set(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_PAYMENTS, list);
+  },
+  loadPreviousMonthPayments: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_PAYMENTS, []);
+  },
+  clearPreviousMonthPayments: function() {
+    this._set(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_PAYMENTS, []);
+  },
+
+  // HỌC PHÍ ĐÓNG GÓI (nhiều tháng)
+  savePackages: function(data) {
+    return this._set(APP_CONFIG.STORAGE_KEYS.PACKAGES, data);
+  },
+  loadPackages: function() {
+    return this._get(APP_CONFIG.STORAGE_KEYS.PACKAGES, []);
+  },
+  addPackage: function(pkg) {
+    const list = this.loadPackages();
+    const newPkg = {
+      ...pkg,
+      packageId: 'PKG' + Date.now(),
+      addedDate: new Date().toISOString()
+    };
+    list.push(newPkg);
+    this.savePackages(list);
+    return newPkg.packageId;
+  },
+  removePackage: function(packageId) {
+    let list = this.loadPackages();
+    list = list.filter(p => p.packageId !== packageId);
+    this.savePackages(list);
+  },
+  // Kiểm tra MSHS có đang trong gói đóng tiền không
+  isPackageActive: function(mshs, monthYear) {
+    const packages = this.loadPackages();
+    for (const pkg of packages) {
+      if (!pkg.members || !pkg.members.includes(mshs.toUpperCase())) continue;
+      // monthYear format: "2026-08"
+      const [pkgYear, pkgMonth] = pkg.startMonth.split('-').map(Number);
+      const [curYear, curMonth] = monthYear.split('-').map(Number);
+      const pkgStart = pkgYear * 12 + pkgMonth;
+      const pkgEnd = pkgStart + (pkg.months || 1) - 1;
+      const cur = curYear * 12 + curMonth;
+      if (cur >= pkgStart && cur <= pkgEnd) {
+        return { active: true, packageName: pkg.packageName || pkg.groupName, startMonth: pkg.startMonth, endMonth: pkg.endMonth || '' };
+      }
+    }
+    return { active: false };
+  },
+
   // DỮ LIỆU THÁNG TRƯỚC
   savePrevMonthDS: function(data, monthInfo) {
     this._set(APP_CONFIG.STORAGE_KEYS.PREV_MONTH_DS, data);
