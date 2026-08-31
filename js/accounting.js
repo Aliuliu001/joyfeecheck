@@ -69,7 +69,7 @@ window.Accounting = {
   /**
    * Compare with previous month to detect new, quit, changed class, or company transfer.
    */
-  detectChanges(currentStudents, previousStudents, vtbMatchedMSHS, vtbAmountByMSHS) {
+  detectChanges(currentStudents, previousStudents, vtbMatchedMSHS, vtbAmountByMSHS, prevInvoiceStudents, currentInvoiceStudents) {
     const changes = [];
     
     // Use first class row as primary class if multiple exist
@@ -152,6 +152,42 @@ window.Accounting = {
         });
       }
     }
+
+    // So sánh DS Ghi HĐ: tháng trước vs tháng này
+    if (prevInvoiceStudents && currentInvoiceStudents) {
+      const prevInvSet = new Set(prevInvoiceStudents.map(s => s.mshs));
+      const currInvSet = new Set(currentInvoiceStudents.map(s => s.mshs));
+
+      // DS Ghi HĐ tháng trước có, tháng này không có → "Giảm"
+      for (const mshs of prevInvSet) {
+        if (!currInvSet.has(mshs)) {
+          const student = currMap.get(mshs) || prevMap.get(mshs);
+          changes.push({
+            type: 'giam_hoa_don',
+            mshs: mshs,
+            fullName: student ? student.fullName : '',
+            oldClass: null,
+            newClass: null,
+            ghiChu: 'Giảm khỏi DS Ghi HĐ'
+          });
+        }
+      }
+
+      // DS Ghi HĐ tháng trước không có, tháng này có → "Tăng mới"
+      for (const mshs of currInvSet) {
+        if (!prevInvSet.has(mshs)) {
+          const student = currMap.get(mshs);
+          changes.push({
+            type: 'tang_hoa_don',
+            mshs: mshs,
+            fullName: student ? student.fullName : '',
+            oldClass: null,
+            newClass: null,
+            ghiChu: 'Tăng mới vào DS Ghi HĐ'
+          });
+        }
+      }
+    }
     
     // Sort by type priority
     const priority = {
@@ -159,10 +195,12 @@ window.Accounting = {
       [APP_CONFIG.CHANGE_TYPE.QUIT]: 2,
       [APP_CONFIG.CHANGE_TYPE.CLASS_CHANGE]: 3,
       [APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER]: 4,
-      [APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT]: 5
+      [APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT]: 5,
+      'giam_hoa_don': 6,
+      'tang_hoa_don': 7
     };
     
-    changes.sort((a, b) => priority[a.type] - priority[b.type]);
+    changes.sort((a, b) => (priority[a.type] || 99) - (priority[b.type] || 99));
     return changes;
   },
 

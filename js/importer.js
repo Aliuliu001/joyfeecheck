@@ -328,5 +328,64 @@ window.Importer = {
       if (window.Utils) window.Utils.showToast('Lỗi khi đọc file Tiền mặt: ' + e.message, 'error');
       return [];
     }
+  },
+
+  // Parse DS Ghi HĐ tháng trước (danh sách học sinh cần viết hóa đơn)
+  parsePrevInvoice: async function(file) {
+    try {
+      const data = await this.readFileAsArrayBuffer(file);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const dataMatrix = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      let headerRowIdx = 0;
+      let maxMatches = 0;
+      const expectedKeywords = ['mshs', 'họ tên', 'lớp', 'học phí', 'stt'];
+      
+      for (let i = 0; i < Math.min(10, dataMatrix.length); i++) {
+        const row = dataMatrix[i];
+        if (!row || row.length === 0) continue;
+        const rowStr = row.map(cell => Utils.normalizeText(cell || '')).join(' ');
+        let matches = expectedKeywords.filter(kw => rowStr.includes(Utils.normalizeText(kw))).length;
+        if (matches > maxMatches) {
+          maxMatches = matches;
+          headerRowIdx = i;
+        }
+      }
+
+      const headers = dataMatrix[headerRowIdx];
+      const colMap = {
+        stt: this.findColumnIndex(headers, ['STT']),
+        mshs: this.findColumnIndex(headers, ['MSHS', 'Mã HS', 'Mã']),
+        fullName: this.findColumnIndex(headers, ['Họ tên', 'Tên', 'Full name']),
+        className: this.findColumnIndex(headers, ['Lớp', 'Class']),
+        hocPhi: this.findColumnIndex(headers, ['Học phí', 'Tổng HP']),
+        trangThai: this.findColumnIndex(headers, ['Trạng thái', 'Status']),
+        ghiChu: this.findColumnIndex(headers, ['Ghi chú', 'Note'])
+      };
+
+      const students = [];
+      for (let i = headerRowIdx + 1; i < dataMatrix.length; i++) {
+        const row = dataMatrix[i];
+        if (!row || row.length === 0) continue;
+        if (!row[colMap.mshs] && !row[colMap.fullName]) continue;
+
+        students.push({
+          mshs: (row[colMap.mshs] || '').toString().trim().toUpperCase(),
+          fullName: colMap.fullName >= 0 ? (row[colMap.fullName] || '').toString().trim() : '',
+          className: colMap.className >= 0 ? (row[colMap.className] || '').toString().trim() : '',
+          hocPhi: colMap.hocPhi >= 0 ? Utils.parseNumber(row[colMap.hocPhi]) : 0,
+          trangThai: colMap.trangThai >= 0 ? (row[colMap.trangThai] || '').toString().trim() : '',
+          ghiChu: colMap.ghiChu >= 0 ? (row[colMap.ghiChu] || '').toString().trim() : ''
+        });
+      }
+
+      console.log(`Đã parse DS Ghi HĐ tháng trước: ${students.length} HS`);
+      return students;
+    } catch (e) {
+      console.error(e);
+      if (window.Utils) window.Utils.showToast('Lỗi khi đọc DS Ghi HĐ: ' + e.message, 'error');
+      return [];
+    }
   }
 };

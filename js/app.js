@@ -152,7 +152,8 @@ window.App = {
       { id: 'drop-ds-hs', type: 'dsHocSinh', parser: 'parseGoogleSheets' },
       { id: 'drop-vietinbank', type: 'vietinBank', parser: 'parseSaoKeVietinBank' },
       { id: 'drop-tpbank', type: 'tpBank', parser: 'parseSaoKeTPBank' },
-      { id: 'drop-cash', type: 'tienMat', parser: 'parseTienMat' }
+      { id: 'drop-cash', type: 'tienMat', parser: 'parseTienMat' },
+      { id: 'drop-prev-invoice', type: 'prevInvoice', parser: 'parsePrevInvoice' }
     ];
 
     zones.forEach(zone => {
@@ -208,6 +209,13 @@ window.App = {
       } else if (type === 'tienMat') {
         this.state.cashPayments = await Importer.parseTienMat(file);
         result = this.state.cashPayments;
+      } else if (type === 'prevInvoice') {
+        this.state.prevInvoiceStudents = await Importer.parsePrevInvoice(file);
+        result = this.state.prevInvoiceStudents;
+        // Save to storage for comparison
+        if (result && result.length > 0) {
+          Storage._set('joy_prev_invoice_students', result);
+        }
       }
 
       const count = result ? result.length : 0;
@@ -353,6 +361,14 @@ window.App = {
       const ghiHDResult = Accounting.generateGhiHD(this.state.thucTeRows, prevMonthHD, vtbMatchedMSHS);
       this.state.ghiHDRows = ghiHDResult.rows;
       this.state.selectedHDMSHS = ghiHDResult.selectedMSHS;
+      
+      // Set currentInvoiceStudents from ghiHDRows (for comparison with prev month)
+      this.state.currentInvoiceStudents = this.state.ghiHDRows.map(r => ({
+        mshs: r.mshs,
+        fullName: r.fullName,
+        className: r.className,
+        hocPhi: r.hocPhi
+      }));
 
       // 6. Detect changes
       const prevMonthDS = Storage.loadPrevMonthDS();
@@ -362,7 +378,7 @@ window.App = {
         this.state.vtbMatched.forEach(t => {
           if (t.matchedMSHS) vtbAmountByMSHS[t.matchedMSHS] = (vtbAmountByMSHS[t.matchedMSHS] || 0) + (Number(t.credit) || 0);
         });
-        this.state.changeRecords = Accounting.detectChanges(this.state.students, prevMonthDS, vtbMatchedMSHS, vtbAmountByMSHS);
+        this.state.changeRecords = Accounting.detectChanges(this.state.students, prevMonthDS, vtbMatchedMSHS, vtbAmountByMSHS, this.state.prevInvoiceStudents, this.state.currentInvoiceStudents);
       } else {
         this.state.changeRecords = [];
       }
