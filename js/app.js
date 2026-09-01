@@ -23,6 +23,7 @@ window.App = {
     changeRecords: [],
     prevInvoiceStudents: [],
     currentInvoiceStudents: [],
+    monthYear: '',
     importStatus: {
       dsHocSinh: false,
       vietinBank: false,
@@ -100,6 +101,11 @@ window.App = {
     const monthInput = document.getElementById('month-selector');
     if (monthInput) {
       monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      this.state.monthYear = monthInput.value;
+      // Update state when month changes
+      monthInput.addEventListener('change', (e) => {
+        this.state.monthYear = e.target.value;
+      });
     }
   },
 
