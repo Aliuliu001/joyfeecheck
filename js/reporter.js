@@ -22,6 +22,16 @@ window.Reporter = {
       grouped.get(student.mshs).push(student);
     }
 
+    // Build family lookup: MSHS -> familyGroup
+    const familyLookup = new Map();
+    for (const fg of familyGroups) {
+      if (fg.members) {
+        for (const mshs of fg.members) {
+          familyLookup.set(mshs, fg);
+        }
+      }
+    }
+
     for (const [mshs, classRows] of grouped.entries()) {
       let tongHocPhi = 0;
       let classes = [];
@@ -41,6 +51,53 @@ window.Reporter = {
       
       const paymentData = paymentsByMSHS.get(mshs) || { vtb: 0, tpb: 0, cash: 0, total: 0 };
       
+      // =========================
+      // FAMILY SPLIT LOGIC
+      // =========================
+      const familyGroup = familyLookup.get(mshs);
+      let familySplit = null;
+      let adjustedPayment = paymentData.total;
+      let familyNote = '';
+
+      if (familyGroup) {
+        // Calculate family total fee
+        let familyTotalFee = 0;
+        const familyStudentFees = {};
+        for (const fmshs of familyGroup.members) {
+          const fmRows = grouped.get(fmshs) || [];
+          let fFee = 0;
+          for (const r of fmRows) {
+            fFee += (Number(r.hocPhi) || 0);
+          }
+          familyStudentFees[fmshs] = fFee;
+          familyTotalFee += fFee;
+        }
+
+        // Calculate this student's share
+        const myShare = familyTotalFee > 0 ? (tongHocPhi / familyTotalFee) : 0;
+        
+        // Get all family payments
+        let familyTotalPayment = 0;
+        for (const fmshs of familyGroup.members) {
+          const fp = paymentsByMSHS.get(fmshs) || { vtb: 0, tpb: 0, cash: 0, total: 0 };
+          familyTotalPayment += fp.total;
+        }
+
+        // Split payment by fee ratio
+        adjustedPayment = Math.floor(familyTotalPayment * myShare);
+        
+        familySplit = {
+          group: familyGroup,
+          totalFee: familyTotalFee,
+          myFee: tongHocPhi,
+          myShare: myShare,
+          familyTotalPayment: familyTotalPayment,
+          adjustedPayment: adjustedPayment
+        };
+
+        familyNote = `👨‍👩‍👧‍👦 GĐ: ${familyGroup.name || familyGroup.groupId} — HP ${Utils.formatCurrency(tongHocPhi)} / ${Utils.formatCurrency(familyTotalFee)} (${Math.round(myShare*100)}%)`;
+      }
+
       // Check if student has active package
       const packageInfo = Storage.isPackageActive(mshs, monthYear);
       let trangThai = '';
@@ -52,12 +109,12 @@ window.Reporter = {
       } else if (packageInfo.active) {
         // Student has paid via package
         trangThai = APP_CONFIG.STATUS.PACKAGE;
-      } else if (paymentData.total >= tongHocPhi && tongHocPhi > 0) {
-        trangThai = paymentData.total > tongHocPhi ? APP_CONFIG.STATUS.OVERPAID : APP_CONFIG.STATUS.PAID;
-      } else if (paymentData.total > 0 && paymentData.total < tongHocPhi) {
+      } else if (adjustedPayment >= tongHocPhi && tongHocPhi > 0) {
+        trangThai = adjustedPayment > tongHocPhi ? APP_CONFIG.STATUS.OVERPAID : APP_CONFIG.STATUS.PAID;
+      } else if (adjustedPayment > 0 && adjustedPayment < tongHocPhi) {
         trangThai = APP_CONFIG.STATUS.PARTIAL;
-        soTienThieu = tongHocPhi - paymentData.total;
-      } else if (paymentData.total === 0) {
+        soTienThieu = tongHocPhi - adjustedPayment;
+      } else if (adjustedPayment === 0) {
         trangThai = APP_CONFIG.STATUS.UNPAID;
         soTienThieu = tongHocPhi;
       }
@@ -87,16 +144,19 @@ window.Reporter = {
       }
 
       // 4. Nhóm gia đình
-      const fg = familyGroups.find(g => g.members.includes(mshs));
-      if (fg) {
-        notes.push(`GĐ: ${fg.groupName}`);
+      if (familyGroup) {
+        notes.push(`👨‍👩‍👧‍👦 GĐ: ${familyGroup.name || familyGroup.groupId}`);
+        if (familySplit) {
+          notes.push(`HP ${Utils.formatCurrency(tongHocPhi)} / ${Utils.formatCurrency(familySplit.totalFee)} (${Math.round(familySplit.myShare*100)}%)`);
+          notes.push(`Đã CK GD: ${Utils.formatCurrency(familySplit.familyTotalPayment)} → CPHN: ${Utils.formatCurrency(adjustedPayment)}`);
+        }
       }
 
       // 5. Thiếu / Dư
       if (trangThai === APP_CONFIG.STATUS.PARTIAL) {
         notes.push(`Thiếu: ${Utils.formatCurrency(soTienThieu)}`);
       } else if (trangThai === APP_CONFIG.STATUS.OVERPAID) {
-        notes.push(`Dư: ${Utils.formatCurrency(paymentData.total - tongHocPhi)}`);
+        notes.push(`Dư: ${Utils.formatCurrency(adjustedPayment - tongHocPhi)}`);
       }
 
       let ghiChu = notes.join(' · ');
@@ -106,12 +166,14 @@ window.Reporter = {
         fullName: primaryRow.fullName || '',
         className: classes.join(', '),
         teacher: teachers.join(', '),
-        phone: primaryRow.phone || '', // Keep phone for NhacPH later
+        phone: primaryRow.phone || '',
         tongHocPhi: tongHocPhi,
         chuyenKhoanVTB: paymentData.vtb,
         tienMat: paymentData.cash,
         chuyenKhoanTPB: paymentData.tpb,
-        tongDaDong: paymentData.total,
+        tongDaDong: familySplit ? adjustedPayment : paymentData.total,
+        tongDaDongGoc: paymentData.total,
+        familySplit: familySplit,
         trangThai: trangThai,
         soTienThieu: soTienThieu,
         ghiChu: ghiChu,
