@@ -357,11 +357,8 @@ window.App = {
         this.state.cashPayments
       );
 
-      // 3.5. Distribute family payments
+      // 3.5. Family split is handled in Reporter.generateReport() using fee ratio
       const familyGroups = Storage.loadFamilyGroups();
-      if (familyGroups && familyGroups.length > 0) {
-        paymentsByMSHS = Matcher.distributeByFamily(paymentsByMSHS, this.state.students, familyGroups);
-      }
 
       // 4. Generate report
       this.state.reportRows = Reporter.generateReport(this.state.students, paymentsByMSHS, familyGroups, this.state.monthYear || '');
@@ -892,9 +889,8 @@ window.App = {
       );
 
       const familyGroups = Storage.loadFamilyGroups();
-      if (familyGroups && familyGroups.length > 0) {
-        paymentsByMSHS = Matcher.distributeByFamily(paymentsByMSHS, this.state.students, familyGroups);
-      }
+      // NOTE: Family split is handled in Reporter.generateReport() using fee ratio
+      // No need to call Matcher.distributeByFamily() here
 
       this.state.reportRows = Reporter.generateReport(this.state.students, paymentsByMSHS, familyGroups, this.state.monthYear || '');
 
