@@ -52,7 +52,7 @@ window.Reporter = {
       const paymentData = paymentsByMSHS.get(mshs) || { vtb: 0, tpb: 0, cash: 0, total: 0 };
       
       // =========================
-      // FAMILY SPLIT LOGIC
+      // FAMILY SPLIT LOGIC (Sequential Allocation)
       // =========================
       const familyGroup = familyLookup.get(mshs);
       let familySplit = null;
@@ -73,9 +73,6 @@ window.Reporter = {
           familyTotalFee += fFee;
         }
 
-        // Calculate this student's share
-        const myShare = familyTotalFee > 0 ? (tongHocPhi / familyTotalFee) : 0;
-        
         // Get all family payments
         let familyTotalPayment = 0;
         for (const fmshs of familyGroup.members) {
@@ -83,19 +80,38 @@ window.Reporter = {
           familyTotalPayment += fp.total;
         }
 
-        // Split payment by fee ratio
-        adjustedPayment = Math.floor(familyTotalPayment * myShare);
+        // Sequential allocation: allocate to each student in order until pool is exhausted
+        let pool = familyTotalPayment;
+        let myAllocated = 0;
+        
+        // Sort members by fee (highest first) to allocate fairly
+        const sortedMembers = [...familyGroup.members].sort((a, b) => {
+          return (familyStudentFees[b] || 0) - (familyStudentFees[a] || 0);
+        });
+        
+        for (const fmshs of sortedMembers) {
+          const fFee = familyStudentFees[fmshs] || 0;
+          if (fmshs === mshs) {
+            // This is the current student - allocate what's left or their fee, whichever is smaller
+            myAllocated = Math.min(pool, fFee);
+            break;
+          } else {
+            // Allocate to other students first
+            const alloc = Math.min(pool, fFee);
+            pool -= alloc;
+          }
+        }
+
+        adjustedPayment = myAllocated;
         
         familySplit = {
           group: familyGroup,
           totalFee: familyTotalFee,
           myFee: tongHocPhi,
-          myShare: myShare,
           familyTotalPayment: familyTotalPayment,
-          adjustedPayment: adjustedPayment
+          adjustedPayment: adjustedPayment,
+          pool: pool
         };
-
-        familyNote = `👨‍👩‍👧‍👦 GĐ: ${familyGroup.name || familyGroup.groupId} — HP ${Utils.formatCurrency(tongHocPhi)} / ${Utils.formatCurrency(familyTotalFee)} (${Math.round(myShare*100)}%)`;
       }
 
       // Check if student has active package
@@ -147,8 +163,8 @@ window.Reporter = {
       if (familyGroup) {
         notes.push(`👨‍👩‍👧‍👦 GĐ: ${familyGroup.name || familyGroup.groupId}`);
         if (familySplit) {
-          notes.push(`HP ${Utils.formatCurrency(tongHocPhi)} / ${Utils.formatCurrency(familySplit.totalFee)} (${Math.round(familySplit.myShare*100)}%)`);
-          notes.push(`Đã CK GD: ${Utils.formatCurrency(familySplit.familyTotalPayment)} → CPHN: ${Utils.formatCurrency(adjustedPayment)}`);
+          notes.push(`HP ${Utils.formatCurrency(tongHocPhi)} / Tổng GD: ${Utils.formatCurrency(familySplit.familyTotalPayment)}`);
+          notes.push(`Đã phân bổ: ${Utils.formatCurrency(adjustedPayment)}${familySplit.pool > 0 ? ` (còn dư: ${Utils.formatCurrency(familySplit.pool)})` : ''}`);
         }
       }
 
