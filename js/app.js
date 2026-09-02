@@ -48,6 +48,7 @@ window.App = {
     this.loadSettingsUI();
     this.autoLoadMappings();
     this.checkExpiringPackages();
+    this.checkPendingReferrals();
     // Load prev invoice students from storage
     this.state.prevInvoiceStudents = Storage._get('joy_prev_invoice_students', []);
     console.log('Joy Fee Check initialized successfully.');
@@ -91,6 +92,20 @@ window.App = {
         Utils.showToast(`⚠ Gói "${pkg.packageName}" sắp hết hạn (${pkg.endMonth})! Thành viên: ${memberNames}. Phụ huynh cần đóng thêm.`, 'warning');
       }
     });
+  },
+
+  checkPendingReferrals: function() {
+    const monthYear = this.state.monthYear || document.getElementById('month-selector')?.value || '';
+    if (!monthYear) return;
+    const pending = Storage.getPendingReferrals(monthYear);
+    if (pending.length > 0) {
+      const students = this.state.students || [];
+      pending.forEach(r => {
+        const ph = students.find(s => s.mshs === r.mshs);
+        const hs = students.find(s => s.mshs === r.referredMSHS);
+        Utils.showToast(`🎁 ${ph?.fullName || r.mshs}: Đã giới thiệu ${hs?.fullName || r.referredMSHS} đủ 3 tháng! Cần trừ ${Utils.formatCurrency(r.amount)}. Vào Cài đặt để xác nhận.`, 'warning', 10000);
+      });
+    }
   },
 
   setupDate: function() {
@@ -300,6 +315,7 @@ window.App = {
     document.getElementById('btn-add-family')?.addEventListener('click', () => this.addFamilyGroupUI());
     document.getElementById('btn-add-package')?.addEventListener('click', () => this.addPackageUI());
     document.getElementById('btn-add-adjustment')?.addEventListener('click', () => this.addAdjustmentUI());
+    document.getElementById('btn-add-referral')?.addEventListener('click', () => this.addReferralUI());
   },
 
   // ========================
@@ -1319,6 +1335,33 @@ window.App = {
       }
     }
 
+    // Referrals table
+    const referrals = Storage.loadReferrals() || [];
+    const refTbody = document.querySelector('#table-referrals tbody');
+    if (refTbody) {
+      if (referrals.length === 0) {
+        refTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Chưa có giới thiệu nào</td></tr>';
+      } else {
+        refTbody.innerHTML = referrals.map(r => {
+          const ph = students.find(s => s.mshs === r.mshs);
+          const hs = students.find(s => s.mshs === r.referredMSHS);
+          const isPending = !r.confirmed && r.applyMonth <= this.state.monthYear;
+          const isConfirmed = r.confirmed;
+          return `<tr style="${isPending ? 'background: rgba(255,193,7,0.1);' : ''}">
+            <td>${r.mshs} - ${ph?.fullName || ''}</td>
+            <td>${r.referredMSHS} - ${hs?.fullName || ''}</td>
+            <td>${r.startMonth}</td>
+            <td>${r.applyMonth}</td>
+            <td>${isConfirmed ? '<span class="badge success">✅ Đã xác nhận</span>' : isPending ? '<span class="badge warning">⏳ Chờ xác nhận</span>' : '<span class="badge">Chưa đến hạn</span>'}</td>
+            <td>
+              ${isPending ? `<button class="btn btn-sm btn-primary" onclick="App.confirmReferral('${r.id}')">✅ Đã báo PH</button>` : ''}
+              <button class="btn btn-sm btn-danger" onclick="App.deleteReferral('${r.id}')">Xóa</button>
+            </td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
     // STK Phu table
     const stkPhu = Storage.loadSTKPhu() || [];
     const stkTbody = document.querySelector('#table-stk-mapping tbody');
@@ -1804,6 +1847,134 @@ window.App = {
         }, 100);
       }
     );
+  },
+
+  // ========================
+  // ACTIONS: Referrals (Giới thiệu bạn mới)
+  // ========================
+  addReferralUI: function() {
+    const students = this.state.students || [];
+    const mshsOptions = students.map(s => `<option value="${s.mshs}">${s.mshs} - ${s.fullName}</option>`).join('');
+
+    Utils.showModal(
+      '🎁 Thêm Giới Thiệu Bạn Mới',
+      `
+      <div class="form-group mb-3">
+        <label>PH nào được giảm? (Chọn MSHS của PH giới thiệu)</label>
+        <select id="input-ref-mshs" class="form-control">
+          <option value="">-- Chọn MSHS PH --</option>
+          ${mshsOptions}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label>HS mới được giới thiệu? (Chọn MSHS HS mới)</label>
+        <select id="input-ref-referred" class="form-control">
+          <option value="">-- Chọn MSHS HS mới --</option>
+          ${mshsOptions}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label>Tháng HS mới bắt đầu học (YYYY-MM)</label>
+        <input type="text" id="input-ref-start" class="form-control" placeholder="VD: 2026-06">
+      </div>
+      <div class="form-group mb-3">
+        <label>Số tiền giảm</label>
+        <input type="number" id="input-ref-amount" class="form-control" value="-400000">
+      </div>
+      <p class="text-sm text-secondary">Sau 3 tháng HS mới học → Hệ thống tự nhắc để trừ tiền. Mỗi HS mới chỉ được giới thiệu 1 lần (chống trùng).</p>
+      `,
+      () => {
+        const mshs = document.getElementById('input-ref-mshs')?.value?.trim();
+        const referredMSHS = document.getElementById('input-ref-referred')?.value?.trim();
+        const startMonth = document.getElementById('input-ref-start')?.value?.trim();
+        const amount = parseInt(document.getElementById('input-ref-amount')?.value) || -400000;
+
+        if (!mshs || !referredMSHS || !startMonth) {
+          Utils.showToast('Vui lòng nhập đầy đủ thông tin', 'error');
+          return false;
+        }
+        if (mshs === referredMSHS) {
+          Utils.showToast('MSHS giới thiệu và HS mới phải khác nhau', 'error');
+          return false;
+        }
+        if (!/^\d{4}-\d{2}$/.test(startMonth)) {
+          Utils.showToast('Tháng phải có định dạng YYYY-MM', 'error');
+          return false;
+        }
+
+        // Calculate apply month (month 4 = start + 3)
+        const [startYear, startMon] = startMonth.split('-').map(Number);
+        const applyDate = new Date(startYear, startMon - 1 + 3);
+        const applyMonth = `${applyDate.getFullYear()}-${String(applyDate.getMonth() + 1).padStart(2, '0')}`;
+
+        const result = Storage.addReferral({
+          mshs,
+          referredMSHS,
+          startMonth,
+          applyMonth,
+          amount,
+          note: `Giới thiệu ${referredMSHS} bắt đầu ${startMonth}`
+        });
+
+        if (result.error) {
+          Utils.showToast(result.error, 'error');
+          return false;
+        }
+
+        const ph = students.find(s => s.mshs === mshs);
+        const hs = students.find(s => s.mshs === referredMSHS);
+        Storage.addHistory({
+          action: 'Thêm giới thiệu bạn mới',
+          detail: `${mshs} (${ph?.fullName || ''}) giới thiệu ${referredMSHS} (${hs?.fullName || ''}) bắt đầu ${startMonth}, áp dụng ${applyMonth}`
+        });
+
+        Utils.showToast(`Đã thêm: ${mshs} giới thiệu ${referredMSHS}. Áp dụng giảm từ ${applyMonth}`, 'success');
+        this.loadSettingsUI();
+      }
+    );
+  },
+
+  confirmReferral: function(refId) {
+    const ref = Storage.loadReferrals().find(r => r.id === refId);
+    if (!ref) return;
+
+    const monthYear = this.state.monthYear || '';
+    const students = this.state.students || [];
+    const ph = students.find(s => s.mshs === ref.mshs);
+
+    Utils.showModal(
+      '✅ Xác nhận đã báo PH',
+      `<p>Đã thông báo <b>${ph?.fullName || ref.mshs}</b> về việc giảm ${Utils.formatCurrency(ref.amount)}?</p>
+       <p class="text-sm text-secondary">Sau khi xác nhận, hệ thống sẽ áp dụng giảm HP tự động.</p>`,
+      () => {
+        // Apply fee adjustment
+        Storage.addFeeAdjustment({
+          mshs: ref.mshs,
+          studentName: ph?.fullName || '',
+          type: 'Giới thiệu bạn mới',
+          amount: ref.amount,
+          monthYear: ref.applyMonth,
+          note: `Giới thiệu ${ref.referredMSHS}`
+        });
+
+        // Confirm referral
+        Storage.confirmReferral(refId);
+
+        Storage.addHistory({
+          action: 'Xác nhận giới thiệu bạn mới',
+          detail: `${ref.mshs} (${ph?.fullName || ''}): Đã xác nhận giảm ${Utils.formatCurrency(ref.amount)} tháng ${ref.applyMonth}`
+        });
+
+        Utils.showToast(`Đã xác nhận! ${ref.mshs} được giảm ${Utils.formatCurrency(ref.amount)} tháng ${ref.applyMonth}`, 'success');
+        this.loadSettingsUI();
+      }
+    );
+  },
+
+  deleteReferral: function(refId) {
+    Storage.removeReferral(refId);
+    Utils.showToast('Đã xóa giới thiệu', 'success');
+    this.loadSettingsUI();
   },
 
   // ========================

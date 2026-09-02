@@ -295,6 +295,47 @@ window.Storage = {
     return list.filter(a => a.mshs === mshs && a.monthYear === monthYear);
   },
 
+  // ========================
+  // GIỚI THIỆU BẠN MỚI
+  // ========================
+  addReferral: function(ref) {
+    const list = this.loadReferrals();
+    // Chống trùng: HS mới đã được ai giới thiệu chưa?
+    const exists = list.find(r => r.referredMSHS === ref.referredMSHS);
+    if (exists) return { error: `HS ${ref.referredMSHS} đã được ${exists.mshs} giới thiệu trước đó` };
+    list.push({
+      id: 'ref_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      ...ref,
+      confirmed: false,
+      createdDate: new Date().toISOString()
+    });
+    this._set('joy_referrals', list);
+    return { success: true };
+  },
+  loadReferrals: function() {
+    return this._get('joy_referrals', []);
+  },
+  confirmReferral: function(refId) {
+    const list = this.loadReferrals();
+    const ref = list.find(r => r.id === refId);
+    if (ref) {
+      ref.confirmed = true;
+      ref.confirmedDate = new Date().toISOString();
+      this._set('joy_referrals', list);
+    }
+    return list;
+  },
+  removeReferral: function(refId) {
+    const list = this.loadReferrals().filter(r => r.id !== refId);
+    this._set('joy_referrals', list);
+    return list;
+  },
+  // Kiểm tra referral nào đã đủ 3 tháng và chưa xác nhận
+  getPendingReferrals: function(monthYear) {
+    const list = this.loadReferrals();
+    return list.filter(r => !r.confirmed && r.applyMonth && r.applyMonth <= monthYear);
+  },
+
   // BACKUP & RESTORE
   exportFullBackup: function() {
     const backup = {};
