@@ -299,6 +299,7 @@ window.App = {
     // Family Group button
     document.getElementById('btn-add-family')?.addEventListener('click', () => this.addFamilyGroupUI());
     document.getElementById('btn-add-package')?.addEventListener('click', () => this.addPackageUI());
+    document.getElementById('btn-add-adjustment')?.addEventListener('click', () => this.addAdjustmentUI());
   },
 
   // ========================
@@ -492,7 +493,7 @@ window.App = {
         <td class="number">${Utils.formatCurrency(r.tienMat)}</td>
         <td class="number">${Utils.formatCurrency(r.chuyenKhoanTPB)}</td>
         <td class="number">${Utils.formatCurrency(r.tongDaDong)}</td>
-        <td><span class="badge ${statusClass}">${r.trangThai || ''}</span></td>
+        <td><span class="badge ${statusClass}">${r.trangThai || ''}</span>${(r.trangThai === APP_CONFIG.STATUS.UNPAID || r.trangThai === APP_CONFIG.STATUS.PARTIAL) ? '<br><button class="btn btn-xs btn-outline mt-1" onclick="App.adjustFeeFromReport(\'' + safeMshs + '\', \'' + safeName + '\')">📝 Điều chỉnh</button>' : ''}</td>
         <td style="${isWarning ? 'color: var(--danger-color); font-weight: 500;' : ''}">${r.ghiChu || ''}${isOverpaid ? '<br><button class="btn btn-xs btn-outline mt-1" onclick="App.markBookFee(\'' + safeMshs + '\')">📚 Tiền sách</button>' : ''}</td>
       </tr>`;
     }).join('');
@@ -1299,6 +1300,25 @@ window.App = {
       }
     }
 
+    // Fee Adjustments table
+    const adjustments = Storage.loadFeeAdjustments() || [];
+    const adjTbody = document.querySelector('#table-adjustments tbody');
+    if (adjTbody) {
+      if (adjustments.length === 0) {
+        adjTbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-secondary)">Chưa có điều chỉnh nào</td></tr>';
+      } else {
+        adjTbody.innerHTML = adjustments.map(a => `<tr>
+          <td>${a.mshs}</td>
+          <td>${a.studentName || ''}</td>
+          <td>${a.type}</td>
+          <td style="color: ${a.amount < 0 ? 'var(--color-success)' : 'var(--color-danger)'}">${Utils.formatCurrency(a.amount)}</td>
+          <td>${a.monthYear}</td>
+          <td class="text-sm">${a.note || ''}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="App.deleteAdjustment('${a.id}')">Xóa</button></td>
+        </tr>`).join('');
+      }
+    }
+
     // STK Phu table
     const stkPhu = Storage.loadSTKPhu() || [];
     const stkTbody = document.querySelector('#table-stk-mapping tbody');
@@ -1614,6 +1634,176 @@ window.App = {
     Storage.removePackage(packageId);
     Utils.showToast('Đã xóa gói', 'success');
     this.loadSettingsUI();
+  },
+
+  // ========================
+  // ACTIONS: Fee Adjustments
+  // ========================
+  addAdjustmentUI: function() {
+    const monthYear = this.state.monthYear || document.getElementById('input-month')?.value || '';
+    const students = this.state.students || [];
+    const mshsOptions = students.map(s => `<option value="${s.mshs}">${s.mshs} - ${s.fullName}</option>`).join('');
+
+    Utils.showModal(
+      '📝 Thêm Điều Chỉnh Học Phí',
+      `
+      <div class="form-group mb-3">
+        <label>MSHS học viên</label>
+        <select id="input-adj-mshs" class="form-control">
+          <option value="">-- Chọn MSHS --</option>
+          ${mshsOptions}
+        </select>
+      </div>
+      <div class="form="form-group mb-3">
+        <label>Loại điều chỉnh</label>
+        <select id="input-adj-type" class="form-control">
+          <option value="Giới thiệu bạn mới">🎁 Giới thiệu bạn mới (giảm tiền)</option>
+          <option value="Tạm ngưng lớp">⏸️ Tạm ngưng lớp (giảm HP tháng này)</option>
+          <option value="Hỗ trợ hoàn cảnh">❤️ Hỗ trợ hoàn cảnh (miễn/giảm)</option>
+          <option value="Ưu đãi khác">💰 Ưu đãi khác</option>
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label>Số tiền điều chỉnh (giảm = số âm, tăng = số dương)</label>
+        <input type="number" id="input-adj-amount" class="form-control" placeholder="VD: -400000 (giảm 400k)" value="-400000">
+      </div>
+      <div class="form-group mb-3">
+        <label>Tháng áp dụng</label>
+        <input type="text" id="input-adj-month" class="form-control" placeholder="YYYY-MM" value="${monthYear}">
+      </div>
+      <div class="form-group mb-3">
+        <label>Ghi chú (tùy chọn)</label>
+        <input type="text" id="input-adj-note" class="form-control" placeholder="VD: Mẹ giới thiệu bạn mới học 3 tháng">
+      </div>
+      <p class="text-sm text-secondary">Số tiền âm = giảm HP. VD: -400000 = giảm 400k. Nếu HP gốc 800k, sau giảm = 400k.</p>
+      `,
+      () => {
+        const mshs = document.getElementById('input-adj-mshs')?.value?.trim();
+        const type = document.getElementById('input-adj-type')?.value;
+        const amount = parseInt(document.getElementById('input-adj-amount')?.value) || 0;
+        const adjMonth = document.getElementById('input-adj-month')?.value?.trim();
+        const note = document.getElementById('input-adj-note')?.value?.trim();
+
+        if (!mshs || !adjMonth) {
+          Utils.showToast('Vui lòng chọn MSHS và Tháng áp dụng', 'error');
+          return false;
+        }
+        if (amount === 0) {
+          Utils.showToast('Số tiền điều chỉnh phải khác 0', 'error');
+          return false;
+        }
+
+        // Validate month format
+        if (!/^\d{4}-\d{2}$/.test(adjMonth)) {
+          Utils.showToast('Tháng phải có định dạng YYYY-MM', 'error');
+          return false;
+        }
+
+        const student = students.find(s => s.mshs === mshs);
+        Storage.addFeeAdjustment({
+          mshs,
+          studentName: student?.fullName || '',
+          type,
+          amount,
+          monthYear: adjMonth,
+          note
+        });
+
+        // Log history
+        Storage.addHistory({
+          action: 'Thêm điều chỉnh HP',
+          detail: `${mshs} (${student?.fullName || ''}): ${type} ${Utils.formatCurrency(amount)} tháng ${adjMonth}`
+        });
+
+        Utils.showToast(`Đã thêm điều chỉnh: ${type} ${Utils.formatCurrency(amount)} cho ${mshs}`, 'success');
+        this.loadSettingsUI();
+      }
+    );
+  },
+
+  deleteAdjustment: function(adjId) {
+    Storage.removeFeeAdjustment(adjId);
+    Utils.showToast('Đã xóa điều chỉnh', 'success');
+    this.loadSettingsUI();
+  },
+
+  // Mở modal điều chỉnh HP từ nút trong báo cáo
+  adjustFeeFromReport: function(mshs, fullName) {
+    const monthYear = this.state.monthYear || '';
+    const students = this.state.students || [];
+    const student = students.find(s => s.mshs === mshs);
+
+    Utils.showModal(
+      `📝 Điều chỉnh HP — ${fullName} (${mshs})`,
+      `
+      <div class="form-group mb-3">
+        <label>MSHS</label>
+        <input type="text" class="form-control" value="${mshs}" readonly style="background: var(--bg-tertiary);">
+      </div>
+      <div class="form-group mb-3">
+        <label>Loại điều chỉnh</label>
+        <select id="input-adj-type" class="form-control">
+          <option value="Giới thiệu bạn mới">🎁 Giới thiệu bạn mới (giảm tiền)</option>
+          <option value="Tạm ngưng lớp">⏸️ Tạm ngưng lớp (giảm HP tháng này)</option>
+          <option value="Hỗ trợ hoàn cảnh">❤️ Hỗ trợ hoàn cảnh (miễn/giảm)</option>
+          <option value="Ưu đãi khác">💰 Ưu đãi khác</option>
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label>Số tiền điều chỉnh (giảm = số âm)</label>
+        <input type="number" id="input-adj-amount" class="form-control" placeholder="VD: -400000 (giảm 400k)" value="-400000">
+      </div>
+      <div class="form-group mb-3">
+        <label>Tháng áp dụng</label>
+        <input type="text" id="input-adj-month" class="form-control" placeholder="YYYY-MM" value="${monthYear}">
+      </div>
+      <div class="form-group mb-3">
+        <label>Ghi chú (tùy chọn)</label>
+        <input type="text" id="input-adj-note" class="form-control" placeholder="VD: Mẹ giới thiệu bạn mới học 3 tháng">
+      </div>
+      <p class="text-sm text-secondary">Số tiền âm = giảm HP. VD: -400000 = giảm 400k.</p>
+      `,
+      () => {
+        const type = document.getElementById('input-adj-type')?.value;
+        const amount = parseInt(document.getElementById('input-adj-amount')?.value) || 0;
+        const adjMonth = document.getElementById('input-adj-month')?.value?.trim();
+        const note = document.getElementById('input-adj-note')?.value?.trim();
+
+        if (!adjMonth) {
+          Utils.showToast('Vui lòng nhập tháng áp dụng', 'error');
+          return false;
+        }
+        if (amount === 0) {
+          Utils.showToast('Số tiền điều chỉnh phải khác 0', 'error');
+          return false;
+        }
+        if (!/^\d{4}-\d{2}$/.test(adjMonth)) {
+          Utils.showToast('Tháng phải có định dạng YYYY-MM', 'error');
+          return false;
+        }
+
+        Storage.addFeeAdjustment({
+          mshs,
+          studentName: fullName,
+          type,
+          amount,
+          monthYear: adjMonth,
+          note
+        });
+
+        Storage.addHistory({
+          action: 'Thêm điều chỉnh HP',
+          detail: `${mshs} (${fullName}): ${type} ${Utils.formatCurrency(amount)} tháng ${adjMonth}`
+        });
+
+        Utils.showToast(`Đã thêm điều chỉnh: ${type} ${Utils.formatCurrency(amount)} cho ${mshs}`, 'success');
+
+        // Re-run matching to update report
+        setTimeout(() => {
+          this.runMatchingBackground();
+        }, 100);
+      }
+    );
   },
 
   // ========================

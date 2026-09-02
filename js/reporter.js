@@ -32,6 +32,14 @@ window.Reporter = {
       }
     }
 
+    // Load fee adjustments for current month
+    const allAdjustments = Storage.loadFeeAdjustments() || [];
+    const adjustments = allAdjustments.filter(a => a.monthYear === monthYear);
+    const adjMap = new Map(); // mshs -> total adjustment amount
+    for (const adj of adjustments) {
+      adjMap.set(adj.mshs, (adjMap.get(adj.mshs) || 0) + adj.amount);
+    }
+
     for (const [mshs, classRows] of grouped.entries()) {
       let tongHocPhi = 0;
       let classes = [];
@@ -48,7 +56,14 @@ window.Reporter = {
           teachers.push(row.teacher);
         }
       }
-      
+
+      // Apply fee adjustments (giới thiệu, tạm ngưng, miễn giảm...)
+      const totalAdj = adjMap.get(mshs) || 0;
+      const tongHocPhiGoc = tongHocPhi;
+      if (totalAdj !== 0) {
+        tongHocPhi = Math.max(0, tongHocPhi + totalAdj); // HP không thể âm
+      }
+
       const paymentData = paymentsByMSHS.get(mshs) || { vtb: 0, tpb: 0, cash: 0, total: 0 };
       
       // =========================
@@ -148,7 +163,17 @@ window.Reporter = {
         const discountAmount = Math.floor(tongHocPhi * discountPercent / 100);
         notes.push(`📦 Đã đóng gói: ${packageInfo.packageName} (${packageInfo.startMonth} → ${packageInfo.endMonth})${discountPercent > 0 ? ` — Giảm ${discountPercent}% (${Utils.formatCurrency(discountAmount)}/tháng)` : ''}`);
       }
-      
+
+      // 0.5. Điều chỉnh học phí
+      if (totalAdj !== 0) {
+        const adjDetails = allAdjustments.filter(a => a.mshs === mshs && a.monthYear === monthYear);
+        const adjTypes = adjDetails.map(a => a.type).join(', ');
+        notes.push(`📝 Điều chỉnh: ${Utils.formatCurrency(totalAdj)} (${adjTypes})`);
+        if (tongHocPhiGoc !== tongHocPhi) {
+          notes.push(`HP: ${Utils.formatCurrency(tongHocPhiGoc)} → ${Utils.formatCurrency(tongHocPhi)}`);
+        }
+      }
+
       // 1. CK VietinBank khác mức học phí quy định (cảnh báo hụt HĐ)
       if (paymentData.vtb > 0 && paymentData.vtb !== tongHocPhi) {
         notes.push(`⚠ CK TK CT: ${Utils.formatCurrency(paymentData.vtb)} (HP: ${Utils.formatCurrency(tongHocPhi)})`);

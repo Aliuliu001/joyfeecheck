@@ -268,6 +268,33 @@ window.Storage = {
     return this._get(APP_CONFIG.STORAGE_KEYS.HISTORY, []);
   },
 
+  // ========================
+  // ĐIỀU CHỈNH HỌC PHÍ
+  // ========================
+  addFeeAdjustment: function(adj) {
+    const list = this.loadFeeAdjustments();
+    list.push({
+      id: 'adj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      ...adj,
+      createdDate: new Date().toISOString()
+    });
+    this._set('joy_fee_adjustments', list);
+    return list;
+  },
+  loadFeeAdjustments: function() {
+    return this._get('joy_fee_adjustments', []);
+  },
+  removeFeeAdjustment: function(id) {
+    const list = this.loadFeeAdjustments().filter(a => a.id !== id);
+    this._set('joy_fee_adjustments', list);
+    return list;
+  },
+  // Lấy tổng số tiền điều chỉnh cho 1 MSHS trong 1 tháng
+  getAdjustmentForStudent: function(mshs, monthYear) {
+    const list = this.loadFeeAdjustments();
+    return list.filter(a => a.mshs === mshs && a.monthYear === monthYear);
+  },
+
   // BACKUP & RESTORE
   exportFullBackup: function() {
     const backup = {};
