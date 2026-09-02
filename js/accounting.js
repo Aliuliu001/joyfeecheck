@@ -44,185 +44,98 @@ window.Accounting = {
   generateGhiHD(studentsThucTe, prevMonthHDList, vtbMatchedMSHS) {
     const selectedMSHS = new Set();
     const rows = [];
-    
+
     for (const s of studentsThucTe) {
       let isMandatory = vtbMatchedMSHS.has(s.mshs);
       let isSelected = false;
-      
+
       if (prevMonthHDList.includes(s.mshs) || isMandatory) {
         isSelected = true;
       }
-      
+
       if (isSelected) {
         selectedMSHS.add(s.mshs);
       }
-      
+
       rows.push({
         ...s,
         mandatory: isMandatory
       });
     }
-    
+
     return { rows, selectedMSHS };
   },
 
   /**
-   * Compare with previous month to detect new, quit, changed class, or company transfer.
+   * Compare DS Ghi HĐ tháng trước vs tháng này → Tăng/Giảm.
+   *
+   * TĂNG MỚI: HS tháng trước KHÔNG có trong DS Ghi HĐ, tháng này CÓ.
+   *   - Lý do có thể: CK vào TK Công ty (bắt buộc), hoặc thêm thủ công.
+   *
+   * GIẢM BỚT: HS tháng trước CÓ trong DS Ghi HĐ, tháng này KHÔNG còn.
+   *   - Lý do: Nghỉ học, HP = 0, tạm ngưng, hoặc bỏ chọn thủ công.
    */
-  detectChanges(currentStudents, previousStudents, vtbMatchedMSHS, vtbAmountByMSHS, prevInvoiceStudents, currentInvoiceStudents, suspendedStudents) {
-    const changes = [];
+  detectChanges(prevInvoiceStudents, currentInvoiceStudents, currMap, vtbMatchedMSHS, suspendedSet, freeTuitionSet) {
+    const changes = { tangMoi: [], giamBot: [] };
 
-    // Use first class row as primary class if multiple exist
-    const getPrimary = (students) => {
-      const map = new Map();
-      for (const s of students) {
-        if (!map.has(s.mshs)) {
-          map.set(s.mshs, s);
-        }
-      }
-      return map;
-    };
-
-    const currMap = getPrimary(currentStudents);
-    const prevMap = getPrimary(previousStudents);
-
-    // Set HS tạm ngưng tháng này
-    const suspendedSet = new Set((suspendedStudents || []).map(s => s.mshs));
-
-    // Set HS có HP = 0 tháng này
-    const freeTuitionSet = new Set();
-    for (const [mshs, s] of currMap.entries()) {
-      if ((Number(s.hocPhi) || 0) === 0) {
-        freeTuitionSet.add(mshs);
-      }
-    }
-
-    // ============================================================
-    // 1. TĂNG MỚI = HS mới CK vào TK Công ty (VietinBank)
-    //    Đây là HS bắt buộc có trong DS Ghi HĐ vì đã đóng tiền vào tài khoản công ty
-    // ============================================================
-    for (const mshs of vtbMatchedMSHS) {
-      const cStudent = currMap.get(mshs);
-      if (!cStudent) continue;
-
-      const pStudent = prevMap.get(mshs);
-      const isNewStudent = !pStudent; // Chưa có tháng trước
-
-      changes.push({
-        type: APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER,
-        mshs: mshs,
-        fullName: cStudent.fullName,
-        oldClass: null,
-        newClass: cStudent.className,
-        ghiChu: isNewStudent ? '🆕 HS mới CK TK Công ty' : 'CK qua TK Công ty (VietinBank)'
-      });
-
-      // Kiểm tra sai số tiền CK TK công ty
-      const hp = Number(cStudent.hocPhi) || 0;
-      const ckNop = (vtbAmountByMSHS && vtbAmountByMSHS[mshs]) || 0;
-      if (hp > 0 && ckNop !== hp) {
-        const chenh = ckNop - hp;
-        changes.push({
-          type: APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT,
-          mshs: mshs,
-          fullName: cStudent.fullName,
-          oldClass: null,
-          newClass: cStudent.className,
-          ghiChu: `Sai số tiền CK TK Công ty: nộp ${Utils.formatCurrency(ckNop)} / quy định ${Utils.formatCurrency(hp)} (${chenh < 0 ? 'THIẾU ' + Utils.formatCurrency(-chenh) : 'DƯ ' + Utils.formatCurrency(chenh)})`
-        });
-      }
-    }
-
-    // ============================================================
-    // 2. ĐỔI LỚP = HS có trong cả 2 tháng nhưng lớp khác
-    // ============================================================
-    for (const [mshs, cStudent] of currMap.entries()) {
-      if (vtbMatchedMSHS.has(mshs)) continue; // Đã xử lý ở trên
-      const pStudent = prevMap.get(mshs);
-      if (pStudent && cStudent.className !== pStudent.className) {
-        changes.push({
-          type: APP_CONFIG.CHANGE_TYPE.CLASS_CHANGE,
-          mshs: mshs,
-          fullName: cStudent.fullName,
-          oldClass: pStudent.className,
-          newClass: cStudent.className,
-          ghiChu: 'Đổi lớp'
-        });
-      }
-    }
-
-    // ============================================================
-    // 3. GIẢM BỚT = HS tháng trước có trong DS Ghi HĐ mà tháng này:
-    //    a) Không còn trong DS Thực tế (nghỉ học), HOẶC
-    //    b) HP tháng này = 0 (miễn giảm), HOẶC
-    //    c) Bị tạm ngưng lớp
-    // ============================================================
     const prevInvSet = new Set((prevInvoiceStudents || []).map(s => s.mshs));
-
-    for (const mshs of prevInvSet) {
-      const cStudent = currMap.get(mshs);
-      const pStudent = prevMap.get(mshs);
-      let ghiChu = '';
-      let isReduced = false;
-
-      if (!cStudent) {
-        // a) Không còn trong DS Thực tế → nghỉ học
-        ghiChu = '🚫 Nghỉ học (không còn trong DS)';
-        isReduced = true;
-      } else if (freeTuitionSet.has(mshs)) {
-        // b) HP = 0 → miễn giảm
-        ghiChu = '💰 HP = 0 (miễn giảm)';
-        isReduced = true;
-      } else if (suspendedSet.has(mshs)) {
-        // c) Tạm ngưng lớp
-        ghiChu = '⏸️ Tạm ngưng lớp';
-        isReduced = true;
-      }
-
-      if (isReduced) {
-        changes.push({
-          type: APP_CONFIG.CHANGE_TYPE.QUIT,
-          mshs: mshs,
-          fullName: pStudent ? pStudent.fullName : (cStudent ? cStudent.fullName : mshs),
-          oldClass: pStudent ? pStudent.className : '',
-          newClass: null,
-          ghiChu: ghiChu
-        });
-      }
-    }
-
-    // ============================================================
-    // 4. TĂNG MỚI DS GHI HĐ = HS tháng trước KHÔNG có trong DS Ghi HĐ
-    //    mà tháng này CÓ trong DS Ghi HĐ (nhưng chưa CK TK Công ty)
-    // ============================================================
     const currInvSet = new Set((currentInvoiceStudents || []).map(s => s.mshs));
 
+    // === TĂNG MỚI ===
     for (const mshs of currInvSet) {
-      if (prevInvSet.has(mshs)) continue; // Đã có tháng trước
-      if (vtbMatchedMSHS.has(mshs)) continue; // Đã xử lý ở phần TĂNG MỚI
+      if (prevInvSet.has(mshs)) continue; // Tháng trước đã có
+
       const student = currMap.get(mshs);
-      if (student) {
-        changes.push({
-          type: 'tang_hoa_don',
-          mshs: mshs,
-          fullName: student.fullName,
-          oldClass: null,
-          newClass: student.className,
-          ghiChu: '📋 Tăng mới DS Ghi HĐ (chưa CK TK CT)'
-        });
+      const isVTB = vtbMatchedMSHS.has(mshs);
+      let lyDo = '';
+
+      if (isVTB) {
+        lyDo = '💳 CK vào TK Công ty';
+      } else if (student && (Number(student.hocPhi) || 0) === 0) {
+        lyDo = '💰 HP = 0';
+      } else {
+        lyDo = 'Thêm vào DS Ghi HĐ';
       }
+
+      changes.tangMoi.push({
+        mshs,
+        fullName: student ? student.fullName : mshs,
+        className: student ? student.className : '',
+        hocPhi: student ? (Number(student.hocPhi) || 0) : 0,
+        lyDo
+      });
     }
 
-    // Sort by type priority
-    const priority = {
-      [APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER]: 1,
-      [APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT]: 2,
-      [APP_CONFIG.CHANGE_TYPE.CLASS_CHANGE]: 3,
-      [APP_CONFIG.CHANGE_TYPE.QUIT]: 4,
-      'tang_hoa_don': 5
-    };
+    // === GIẢM BỚT ===
+    for (const mshs of prevInvSet) {
+      if (currInvSet.has(mshs)) continue; // Tháng này vẫn còn
 
-    changes.sort((a, b) => (priority[a.type] || 99) - (priority[b.type] || 99));
+      const student = currMap.get(mshs) || null;
+      let lyDo = '';
+
+      if (!student) {
+        // Không còn trong DS Thực tế → nghỉ học
+        lyDo = '🚫 Nghỉ học';
+      } else if (freeTuitionSet.has(mshs)) {
+        // HP = 0 → miễn giảm
+        lyDo = '💰 HP = 0';
+      } else if (suspendedSet.has(mshs)) {
+        // Tạm ngưng
+        lyDo = '⏸️ Tạm ngưng';
+      } else {
+        // Bỏ chọn thủ công
+        lyDo = 'Bỏ chọn khỏi DS Ghi HĐ';
+      }
+
+      changes.giamBot.push({
+        mshs,
+        fullName: student ? student.fullName : mshs,
+        className: student ? student.className : '',
+        hocPhi: student ? (Number(student.hocPhi) || 0) : 0,
+        lyDo
+      });
+    }
+
     return changes;
   },
 

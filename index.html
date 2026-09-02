@@ -404,22 +404,43 @@
       </div>
 
       <div id="acc-changes" class="sub-tab-content mt-4">
-        <div class="card glass-card">
+        <div class="card glass-card mb-4">
           <div class="flex-between mb-3">
-            <h3>🔄 Thay đổi so với tháng trước</h3>
-            <span class="badge" id="acc-changes-count">0 thay đổi</span>
+            <h3>📈 TĂNG MỚI — Tháng này thêm vào DS Ghi HĐ</h3>
+            <span class="badge success" id="acc-tang-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">So sánh DS Thực tế tháng này vs tháng trước. Bao gồm: Tăng mới, Nghỉ học, Đổi lớp, CK TK Công ty.</p>
+          <p class="text-sm text-secondary mb-3">HS chưa có DS Ghi HĐ tháng trước, tháng này cần ghi HĐ. Nếu CK vào TK Công ty → bắt buộc.</p>
           <div class="table-container">
-            <table id="table-acc-changes">
+            <table id="table-acc-tang">
               <thead>
                 <tr>
-                  <th>Loại</th>
                   <th>MSHS</th>
                   <th>Họ tên</th>
-                  <th>Lớp cũ</th>
-                  <th>Lớp mới</th>
-                  <th>Ghi chú</th>
+                  <th>Lớp</th>
+                  <th>Học phí</th>
+                  <th>Lý do</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card glass-card">
+          <div class="flex-between mb-3">
+            <h3>📉 GIẢM BỚT — Tháng trước có, tháng này không</h3>
+            <span class="badge error" id="acc-giam-count">0 HS</span>
+          </div>
+          <p class="text-sm text-secondary mb-3">HS tháng trước có DS Ghi HĐ, tháng này không còn (nghỉ học / HP=0 / tạm ngưng / bỏ chọn).</p>
+          <div class="table-container">
+            <table id="table-acc-giam">
+              <thead>
+                <tr>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp</th>
+                  <th>Học phí tháng TRC</th>
+                  <th>Lý do</th>
                 </tr>
               </thead>
               <tbody></tbody>

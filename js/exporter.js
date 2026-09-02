@@ -108,29 +108,13 @@ window.Exporter = {
   /**
    * Export accounting outputs (Thuc te, Ghi HD, Thay doi)
    */
-  exportKeToan(thucTeRows, ghiHDRows, changeRows, monthYear, prevMonthHD = []) {
+  exportKeToan(thucTeRows, ghiHDRows, invoiceChanges, monthYear) {
     const wb = XLSX.utils.book_new();
 
     // Chuẩn hóa tháng thành MM.YYYY (từ input type=month "YYYY-MM")
     const monthLabel = (monthYear || '').includes('-')
       ? monthYear.split('-').reverse().join('.')
       : (monthYear || '');
-
-    const newStudents = new Set();
-    const quitStudents = new Set();
-    changeRows.forEach(c => {
-      if (c.type === APP_CONFIG.CHANGE_TYPE.NEW) {
-        newStudents.add(c.mshs);
-      }
-      if (c.type === APP_CONFIG.CHANGE_TYPE.QUIT) {
-        quitStudents.add(c.mshs);
-      }
-    });
-
-    // Detect "Giam bot" from HĐ perspective:
-    // HS was in prevMonthHD (ghi HĐ tháng trước) but NOT in current ghiHDRows
-    const currentHDMSHS = new Set(ghiHDRows.map(r => r.mshs));
-    const giamBotFromHD = prevMonthHD.filter(mshs => !currentHDMSHS.has(mshs) || quitStudents.has(mshs));
 
     const headers = ['STT', 'Mã học sinh', 'Mã lớp', 'Họ tên học sinh', 'Giáo viên', 'Học phí', 'Địa chỉ', 'Ghi chú'];
 
@@ -160,12 +144,8 @@ window.Exporter = {
     ];
     let totalGhiHD = 0;
     ghiHDRows.forEach((item, idx) => {
-      let note = item.ghiChu || '';
-      if (newStudents.has(item.mshs)) {
-        note = note ? note + ' - Tang moi' : 'Tang moi';
-      }
       aoaGhiHD.push([
-        idx + 1, item.mshs, item.className, item.fullName, item.teacher, item.hocPhi, item.diaChi, note
+        idx + 1, item.mshs, item.className, item.fullName, item.teacher, item.hocPhi, item.diaChi, item.ghiChu || ''
       ]);
       totalGhiHD += (item.hocPhi || 0);
     });
@@ -180,50 +160,47 @@ window.Exporter = {
     this.autoFitColumns(wsGhiHD, ghiHDRows, headers);
     XLSX.utils.book_append_sheet(wb, wsGhiHD, 'Danh sách viết HĐ');
 
-    // 3. Sheet "Bảng thay đổi" — include "Giam bot" rows
-    const changeHeaders = ['Loại thay đổi', 'MSHS', 'Họ tên', 'Lớp cũ', 'Lớp mới', 'Ghi chú'];
+    // 3. Sheet "Thay đổi" — Tăng/Giảm DS Ghi HĐ
+    const tangMoi = (invoiceChanges && invoiceChanges.tangMoi) || [];
+    const giamBot = (invoiceChanges && invoiceChanges.giamBot) || [];
+    const thayDoiHeaders = ['MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do'];
+
     const aoaThayDoi = [
       [APP_CONFIG.COMPANY_NAME],
       [`MST: ${APP_CONFIG.COMPANY_TAX}`],
       [`Địa chỉ: ${APP_CONFIG.COMPANY_ADDRESS}`],
       [],
-      ['BẢNG THAY ĐỔI SO VỚI THÁNG TRƯỚC'],
-      [],
-      changeHeaders
+      [`THAY ĐỔI DS GHI HĐ THÁNG ${monthLabel}`],
+      []
     ];
-    changeRows.forEach(item => {
-      let typeLabel = '';
-      switch (item.type) {
-        case APP_CONFIG.CHANGE_TYPE.NEW: typeLabel = 'Tăng mới'; break;
-        case APP_CONFIG.CHANGE_TYPE.QUIT: typeLabel = 'Nghỉ học'; break;
-        case APP_CONFIG.CHANGE_TYPE.CLASS_CHANGE: typeLabel = 'Đổi lớp'; break;
-        case APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER: typeLabel = 'CK TK Công ty'; break;
-        case APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT: typeLabel = 'SAI SỐ TIỀN CK CÔNG TY'; break;
-      }
-      aoaThayDoi.push([
-        typeLabel, item.mshs, item.fullName, item.oldClass || '', item.newClass || '', item.ghiChu || ''
-      ]);
-    });
 
-    // Append "Giảm bớt HĐ" rows — HS had HĐ last month but gone this month
-    if (giamBotFromHD.length > 0) {
-      aoaThayDoi.push([]);
-      aoaThayDoi.push(['--- GIẢM BỚT (HĐ tháng trước → không còn) ---', '', '', '', '', '']);
-      giamBotFromHD.forEach(mshs => {
-        const quitRecord = changeRows.find(c => c.mshs === mshs && c.type === APP_CONFIG.CHANGE_TYPE.QUIT);
-        aoaThayDoi.push([
-          'Giảm bớt HĐ',
-          mshs,
-          quitRecord ? quitRecord.fullName : mshs,
-          quitRecord ? (quitRecord.oldClass || '') : '',
-          '',
-          'Tháng trước có ghi HĐ'
-        ]);
+    // TĂNG MỚI
+    if (tangMoi.length > 0) {
+      aoaThayDoi.push(['📈 TĂNG MỚI']);
+      aoaThayDoi.push(thayDoiHeaders);
+      tangMoi.forEach(item => {
+        aoaThayDoi.push([item.mshs, item.fullName, item.className, item.hocPhi, item.lyDo]);
       });
+      aoaThayDoi.push(['', '', '', '', `Tổng tăng: ${tangMoi.length} HS`]);
+      aoaThayDoi.push([]);
+    }
+
+    // GIẢM BỚT
+    if (giamBot.length > 0) {
+      aoaThayDoi.push(['📉 GIẢM BỚT']);
+      aoaThayDoi.push(thayDoiHeaders);
+      giamBot.forEach(item => {
+        aoaThayDoi.push([item.mshs, item.fullName, item.className, item.hocPhi, item.lyDo]);
+      });
+      aoaThayDoi.push(['', '', '', '', `Tổng giảm: ${giamBot.length} HS`]);
+    }
+
+    if (tangMoi.length === 0 && giamBot.length === 0) {
+      aoaThayDoi.push(['Không có thay đổi so với tháng trước']);
     }
 
     const wsThayDoi = XLSX.utils.aoa_to_sheet(aoaThayDoi);
-    this.autoFitColumns(wsThayDoi, changeRows, changeHeaders);
+    this.autoFitColumns(wsThayDoi, tangMoi.concat(giamBot), thayDoiHeaders);
     XLSX.utils.book_append_sheet(wb, wsThayDoi, 'Thay đổi');
 
     const filename = `BaoCao_KeToan_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;

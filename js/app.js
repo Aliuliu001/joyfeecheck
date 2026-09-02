@@ -398,18 +398,31 @@ window.App = {
         hocPhi: r.hocPhi
       }));
 
-      // 6. Detect changes
+      // 6. Detect changes (Tăng/Giảm DS Ghi HĐ)
       const prevMonthDS = Storage.loadPrevMonthDS();
-      if (prevMonthDS && prevMonthDS.length > 0) {
-        // Map MSHS -> tổng CK VietinBank (TK Công ty) để kiểm tra sai số tiền
-        const vtbAmountByMSHS = {};
-        this.state.vtbMatched.forEach(t => {
-          if (t.matchedMSHS) vtbAmountByMSHS[t.matchedMSHS] = (vtbAmountByMSHS[t.matchedMSHS] || 0) + (Number(t.credit) || 0);
-        });
-        this.state.changeRecords = Accounting.detectChanges(this.state.students, prevMonthDS, vtbMatchedMSHS, vtbAmountByMSHS, this.state.prevInvoiceStudents, this.state.currentInvoiceStudents, Storage.getSuspendedForMonth(this.state.monthYear || ''));
-      } else {
-        this.state.changeRecords = [];
+      const suspended = Storage.getSuspendedForMonth(this.state.monthYear || '');
+
+      // Build currMap (MSHS -> student)
+      const currMap = new Map();
+      for (const s of this.state.students) {
+        if (!currMap.has(s.mshs)) currMap.set(s.mshs, s);
       }
+
+      // Build sets for quick lookup
+      const suspendedSet = new Set(suspended.map(s => s.mshs));
+      const freeTuitionSet = new Set();
+      for (const [mshs, s] of currMap.entries()) {
+        if ((Number(s.hocPhi) || 0) === 0) freeTuitionSet.add(mshs);
+      }
+
+      this.state.invoiceChanges = Accounting.detectChanges(
+        this.state.prevInvoiceStudents,
+        this.state.currentInvoiceStudents,
+        currMap,
+        vtbMatchedMSHS,
+        suspendedSet,
+        freeTuitionSet
+      );
 
       // 7. Get new STKs
       const newSTKs = Matcher.getNewSTKs(this.state.vtbTransactions, this.state.students, stkPhu);
@@ -703,27 +716,8 @@ window.App = {
     // DS Ghi HĐ (with checkboxes)
     this.renderInvoiceTable();
 
-    // Thay đổi
-    const changesTbody = document.querySelector('#table-acc-changes tbody');
-    if (changesTbody) {
-      if (this.state.changeRecords.length === 0) {
-        changesTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Chưa có dữ liệu tháng trước để so sánh. Hãy lưu DS tháng này làm tham chiếu ở tab Cài đặt.</td></tr>';
-      } else {
-        changesTbody.innerHTML = this.state.changeRecords.map(c => {
-          const typeInfo = this.getChangeTypeInfo(c.type);
-          return `<tr class="${typeInfo.rowClass}">
-            <td>${typeInfo.icon} ${typeInfo.label}</td>
-            <td>${c.mshs}</td>
-            <td>${c.fullName}</td>
-            <td>${c.oldClass || '—'}</td>
-            <td>${c.newClass || '—'}</td>
-            <td>${c.ghiChu || ''}</td>
-          </tr>`;
-        }).join('');
-        const changesCountEl = document.getElementById('acc-changes-count');
-        if (changesCountEl) changesCountEl.textContent = `${this.state.changeRecords.length} thay đổi`;
-      }
-    }
+    // Thay đổi DS Ghi HĐ (Tăng/Giảm)
+    this.renderInvoiceChanges();
 
     // Update prev/curr month comparison
     const prevMonthCountEl = document.getElementById('prev-month-count');
@@ -734,6 +728,46 @@ window.App = {
     }
     if (currMonthCountEl) {
       currMonthCountEl.textContent = this.state.selectedHDMSHS?.size || 0;
+    }
+  },
+
+  renderInvoiceChanges: function() {
+    const changes = this.state.invoiceChanges || { tangMoi: [], giamBot: [] };
+
+    // TĂNG MỚI
+    const tangTbody = document.querySelector('#table-acc-tang tbody');
+    const tangCountEl = document.getElementById('acc-tang-count');
+    if (tangTbody) {
+      if (changes.tangMoi.length === 0) {
+        tangTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary)">Không có HS tăng mới</td></tr>';
+      } else {
+        tangTbody.innerHTML = changes.tangMoi.map(c => `<tr>
+          <td>${c.mshs}</td>
+          <td>${c.fullName}</td>
+          <td>${c.className}</td>
+          <td class="number">${Utils.formatCurrency(c.hocPhi)}</td>
+          <td>${c.lyDo}</td>
+        </tr>`).join('');
+      }
+      if (tangCountEl) tangCountEl.textContent = `${changes.tangMoi.length} HS`;
+    }
+
+    // GIẢM BỚT
+    const giamTbody = document.querySelector('#table-acc-giam tbody');
+    const giamCountEl = document.getElementById('acc-giam-count');
+    if (giamTbody) {
+      if (changes.giamBot.length === 0) {
+        giamTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary)">Không có HS giảm bớt</td></tr>';
+      } else {
+        giamTbody.innerHTML = changes.giamBot.map(c => `<tr>
+          <td>${c.mshs}</td>
+          <td>${c.fullName}</td>
+          <td>${c.className}</td>
+          <td class="number">${Utils.formatCurrency(c.hocPhi)}</td>
+          <td>${c.lyDo}</td>
+        </tr>`).join('');
+      }
+      if (giamCountEl) giamCountEl.textContent = `${changes.giamBot.length} HS`;
     }
   },
 
@@ -1153,8 +1187,7 @@ window.App = {
     }
     const monthYear = document.getElementById('month-selector')?.value || '';
     const ghiHDSelected = this.state.ghiHDRows.filter(r => this.state.selectedHDMSHS.has(r.mshs));
-    const prevMonthHD = Storage.loadPrevMonthHD() || [];
-    Exporter.exportKeToan(this.state.thucTeRows, ghiHDSelected, this.state.changeRecords, monthYear, prevMonthHD);
+    Exporter.exportKeToan(this.state.thucTeRows, ghiHDSelected, this.state.invoiceChanges, monthYear);
     Utils.showToast('Đã xuất file báo cáo kế toán', 'success');
   },
 
