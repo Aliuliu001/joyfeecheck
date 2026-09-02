@@ -344,63 +344,87 @@
       </div>
 
       <div id="acc-real" class="sub-tab-content active mt-4">
-        <div class="table-container card glass-card">
-          <table id="table-acc-real">
-            <thead>
-              <tr>
-                <th>STT</th>
-                <th>MSHS</th>
-                <th>Mã lớp</th>
-                <th>Họ tên</th>
-                <th>GV</th>
-                <th>Học phí</th>
-                <th>Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <div class="card glass-card">
+          <div class="flex-between mb-3">
+            <h3>📋 DS Thực tế — Tháng đang đối soát</h3>
+            <span class="badge" id="acc-real-count">0 HS</span>
+          </div>
+          <p class="text-sm text-secondary mb-3">Tất cả HS đang học trong tháng này. Dùng để đối chiếu tổng số.</p>
+          <div class="table-container">
+            <table id="table-acc-real">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Mã lớp</th>
+                  <th>Họ tên</th>
+                  <th>GV</th>
+                  <th>Học phí</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <div id="acc-invoice" class="sub-tab-content mt-4">
-        <div class="toolbar mb-3">
-          <button id="btn-auto-select-invoice" class="btn btn-secondary">Tự động chọn (Tháng trước + Cty)</button>
-          <span class="selection-count">Đã chọn: <span id="invoice-selected-count">0</span></span>
-        </div>
-        <div class="table-container card glass-card">
-          <table id="table-acc-invoice">
-            <thead>
-              <tr>
-                <th><input type="checkbox" id="check-all-invoice"></th>
-                <th>STT</th>
-                <th>MSHS</th>
-                <th>Mã lớp</th>
-                <th>Họ tên</th>
-                <th>GV</th>
-                <th>Học phí</th>
-                <th>Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <div class="card glass-card">
+          <div class="flex-between mb-3">
+            <h3>📝 DS Ghi HĐ — Tháng đang đối soát</h3>
+            <div>
+              <span class="badge" id="acc-invoice-count">0 HS</span>
+              <button id="btn-auto-select-invoice" class="btn btn-secondary btn-sm" style="margin-left: 8px;">Tự động chọn (Tháng trước + Cty)</button>
+            </div>
+          </div>
+          <p class="text-sm text-secondary mb-3">HS cần viết hóa đơn tháng này. Bấm ☑️ để chọn HS muốn ghi HĐ. So sánh với tháng trước để phát hiện "Tăng mới" / "Giảm bớt".</p>
+          <div class="flex gap-2 mb-3 text-sm">
+            <span>📊 Tháng trước: <b id="prev-month-count">0</b> HS có HĐ</span>
+            <span>→ Tháng này: <b id="curr-month-count">0</b> HS được chọn</span>
+          </div>
+          <div class="table-container">
+            <table id="table-acc-invoice">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="check-all-invoice"></th>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Mã lớp</th>
+                  <th>Họ tên</th>
+                  <th>GV</th>
+                  <th>Học phí</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <div id="acc-changes" class="sub-tab-content mt-4">
-        <div class="table-container card glass-card">
-          <table id="table-acc-changes">
-            <thead>
-              <tr>
-                <th>Loại</th>
-                <th>MSHS</th>
-                <th>Họ tên</th>
-                <th>Lớp cũ</th>
-                <th>Lớp mới</th>
-                <th>Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <div class="card glass-card">
+          <div class="flex-between mb-3">
+            <h3>🔄 Thay đổi so với tháng trước</h3>
+            <span class="badge" id="acc-changes-count">0 thay đổi</span>
+          </div>
+          <p class="text-sm text-secondary mb-3">So sánh DS Thực tế tháng này vs tháng trước. Bao gồm: Tăng mới, Nghỉ học, Đổi lớp, CK TK Công ty.</p>
+          <div class="table-container">
+            <table id="table-acc-changes">
+              <thead>
+                <tr>
+                  <th>Loại</th>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp cũ</th>
+                  <th>Lớp mới</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -408,6 +432,9 @@
         <button id="btn-export-accounting" class="btn btn-primary">
           📥 Xuất Excel Báo cáo Kế toán
         </button>
+      </div>
+      <div class="text-sm text-secondary mt-2" style="text-align:center;">
+        File xuất gồm 3 sheet: <b>Thực Tế</b> (tất cả HS) → <b>Danh sách viết HĐ</b> (HS đã tick ☑️) → <b>Bảng thay đổi</b> (so với tháng trước)
       </div>
     </section>
 

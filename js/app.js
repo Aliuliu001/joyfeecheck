@@ -535,7 +535,11 @@ window.App = {
     if (txList.length === 0) return '<span class="text-secondary">—</span>';
     const safeMshs = (r.mshs || '').replace(/'/g, "\\'");
     const sourceLabels = { vtb: '🏦 VTB', tpb: '🏦 TPB', cash: '💵 TM' };
-    const summary = txList.map(tx => `${sourceLabels[tx.type] || tx.type}: ${Utils.formatCurrency(tx.amount)}`).join('<br>');
+    const summary = txList.map(tx => {
+      let label = `${sourceLabels[tx.type] || tx.type}: ${Utils.formatCurrency(tx.amount)}`;
+      if (tx.type === 'vtb' && tx.tenChuTK) label += ` (${tx.tenChuTK})`;
+      return label;
+    }).join('<br>');
     return `<span class="text-sm" style="cursor:pointer; text-decoration:underline; color:var(--accent-color);" onclick="App.showTxDetail('${safeMshs}')" title="Xem chi tiết">${txList.length} giao dịch</span>
     <div class="text-sm text-secondary">${summary}</div>`;
   },
@@ -549,6 +553,7 @@ window.App = {
     }
     const txList = reportRow.txList;
     const typeLabels = { vtb: '🏦 VietinBank', tpb: '🏦 TPBank', cash: '💵 Tiền mặt' };
+    const hasTenChuTK = txList.some(tx => tx.tenChuTK);
     const rows = txList.map((tx, i) => `
       <tr>
         <td>${i + 1}</td>
@@ -557,6 +562,7 @@ window.App = {
         <td class="number" style="color: var(--color-success); font-weight:600;">${Utils.formatCurrency(tx.amount)}</td>
         <td class="text-sm">${tx.description}</td>
         <td class="text-sm">${tx.account || '—'}</td>
+        ${hasTenChuTK ? `<td class="text-sm">${tx.tenChuTK || '—'}</td>` : ''}
       </tr>
     `).join('');
     const totalAmount = txList.reduce((sum, tx) => sum + tx.amount, 0);
@@ -564,9 +570,9 @@ window.App = {
       `🔍 Chi tiết giao dịch — ${reportRow.fullName} (${mshs})`,
       `<div class="table-container" style="max-height:400px; overflow-y:auto;">
         <table class="compact-table">
-          <thead><tr><th>#</th><th>Nguồn</th><th>Ngày</th><th>Số tiền</th><th>Nội dung</th><th>STK</th></tr></thead>
+          <thead><tr><th>#</th><th>Nguồn</th><th>Ngày</th><th>Số tiền</th><th>Nội dung</th><th>STK</th>${hasTenChuTK ? '<th>Tên chủ TK</th>' : ''}</tr></thead>
           <tbody>${rows}</tbody>
-          <tfoot><tr><td colspan="3" style="text-align:right; font-weight:600;">Tổng:</td><td class="number" style="font-weight:700; color:var(--color-success);">${Utils.formatCurrency(totalAmount)}</td><td colspan="2"></td></tr></tfoot>
+          <tfoot><tr><td colspan="3" style="text-align:right; font-weight:600;">Tổng:</td><td class="number" style="font-weight:700; color:var(--color-success);">${Utils.formatCurrency(totalAmount)}</td><td colspan="${hasTenChuTK ? 3 : 2}"></td></tr></tfoot>
         </table>
       </div>
       <p class="text-sm text-secondary mt-2">HP: ${Utils.formatCurrency(reportRow.tongHocPhi)} — Trạng thái: ${reportRow.trangThai}</p>`
@@ -690,6 +696,8 @@ window.App = {
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
         <td>${r.ghiChu || ''}</td>
       </tr>`).join('');
+      const realCountEl = document.getElementById('acc-real-count');
+      if (realCountEl) realCountEl.textContent = `${this.state.thucTeRows.length} HS`;
     }
 
     // DS Ghi HĐ (with checkboxes)
@@ -712,7 +720,20 @@ window.App = {
             <td>${c.ghiChu || ''}</td>
           </tr>`;
         }).join('');
+        const changesCountEl = document.getElementById('acc-changes-count');
+        if (changesCountEl) changesCountEl.textContent = `${this.state.changeRecords.length} thay đổi`;
       }
+    }
+
+    // Update prev/curr month comparison
+    const prevMonthCountEl = document.getElementById('prev-month-count');
+    const currMonthCountEl = document.getElementById('curr-month-count');
+    if (prevMonthCountEl) {
+      const prevHD = Storage.loadPrevMonthHD() || [];
+      prevMonthCountEl.textContent = prevHD.length;
+    }
+    if (currMonthCountEl) {
+      currMonthCountEl.textContent = this.state.selectedHDMSHS?.size || 0;
     }
   },
 
@@ -755,6 +776,10 @@ window.App = {
     }).join('');
 
     if (selectedCount) selectedCount.textContent = this.state.selectedHDMSHS.size;
+    const invoiceCountEl = document.getElementById('acc-invoice-count');
+    if (invoiceCountEl) invoiceCountEl.textContent = `${this.state.selectedHDMSHS.size}/${this.state.ghiHDRows.length} HS`;
+    const currMonthCountEl = document.getElementById('curr-month-count');
+    if (currMonthCountEl) currMonthCountEl.textContent = this.state.selectedHDMSHS.size;
   },
 
   getChangeTypeInfo: function(type) {

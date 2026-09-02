@@ -284,7 +284,8 @@ window.Matcher = {
         date: tx.date || '',
         amount: tx.credit || 0,
         description: tx.explanation || tx.description || '',
-        account: tx.creditAccount || tx.account || '',
+        account: tx.creditAccount || tx.account || tx.stkDoiUng || '',
+        tenChuTK: tx.tenTKDoiUng || '',
         st: tx.st || ''
       });
     };
