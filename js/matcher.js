@@ -267,18 +267,26 @@ window.Matcher = {
 
   // Tổng hợp số tiền đóng theo MSHS
   aggregateByMSHS: function(vtbMatched, tpbMatched, cashPayments) {
-    const aggregated = new Map(); // mshs -> { vtb, tpb, cash, total }
+    const aggregated = new Map(); // mshs -> { vtb, tpb, cash, total, txList }
 
     const addTx = (tx, type) => {
       const matchedMshs = (tx.matchedMSHS || '').toUpperCase();
       if (!matchedMshs) return;
       if (!aggregated.has(matchedMshs)) {
-        aggregated.set(matchedMshs, { vtb: 0, tpb: 0, cash: 0, total: 0 });
+        aggregated.set(matchedMshs, { vtb: 0, tpb: 0, cash: 0, total: 0, txList: [] });
       }
       const sums = aggregated.get(matchedMshs);
       if (type === 'vtb') sums.vtb += tx.credit;
       if (type === 'tpb') sums.tpb += tx.credit;
       sums.total += tx.credit;
+      sums.txList.push({
+        type,
+        date: tx.date || '',
+        amount: tx.credit || 0,
+        description: tx.explanation || tx.description || '',
+        account: tx.creditAccount || tx.account || '',
+        st: tx.st || ''
+      });
     };
 
     vtbMatched.forEach(tx => addTx(tx, 'vtb'));
@@ -287,11 +295,19 @@ window.Matcher = {
     cashPayments.forEach(cp => {
       const mshs = (cp.mshs || '').toUpperCase();
       if (!aggregated.has(mshs)) {
-        aggregated.set(mshs, { vtb: 0, tpb: 0, cash: 0, total: 0 });
+        aggregated.set(mshs, { vtb: 0, tpb: 0, cash: 0, total: 0, txList: [] });
       }
       const sums = aggregated.get(mshs);
       sums.cash += cp.amount;
       sums.total += cp.amount;
+      sums.txList.push({
+        type: 'cash',
+        date: cp.date || '',
+        amount: cp.amount || 0,
+        description: cp.note || 'Tiền mặt',
+        account: '',
+        st: ''
+      });
     });
 
     return aggregated;

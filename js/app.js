@@ -522,10 +522,55 @@ window.App = {
         <td class="number">${Utils.formatCurrency(r.tienMat)}</td>
         <td class="number">${Utils.formatCurrency(r.chuyenKhoanTPB)}</td>
         <td class="number">${Utils.formatCurrency(r.tongDaDong)}</td>
+        <td>${this.renderTxSource(r)}</td>
         <td><span class="badge ${statusClass}">${r.trangThai || ''}</span>${(r.trangThai === APP_CONFIG.STATUS.UNPAID || r.trangThai === APP_CONFIG.STATUS.PARTIAL) ? '<br><button class="btn btn-xs btn-outline mt-1" onclick="App.adjustFeeFromReport(\'' + safeMshs + '\', \'' + safeName + '\')">📝 Điều chỉnh</button>' : ''}</td>
         <td style="${isWarning ? 'color: var(--danger-color); font-weight: 500;' : ''}">${r.ghiChu || ''}${isOverpaid ? '<br><button class="btn btn-xs btn-outline mt-1" onclick="App.markBookFee(\'' + safeMshs + '\')">📚 Tiền sách</button>' : ''}</td>
       </tr>`;
     }).join('');
+  },
+
+  // Render nguồn CK: hiển thị nguồn + nút xem chi tiết
+  renderTxSource: function(r) {
+    const txList = r.txList || [];
+    if (txList.length === 0) return '<span class="text-secondary">—</span>';
+    const safeMshs = (r.mshs || '').replace(/'/g, "\\'");
+    const sourceLabels = { vtb: '🏦 VTB', tpb: '🏦 TPB', cash: '💵 TM' };
+    const summary = txList.map(tx => `${sourceLabels[tx.type] || tx.type}: ${Utils.formatCurrency(tx.amount)}`).join('<br>');
+    return `<span class="text-sm" style="cursor:pointer; text-decoration:underline; color:var(--accent-color);" onclick="App.showTxDetail('${safeMshs}')" title="Xem chi tiết">${txList.length} giao dịch</span>
+    <div class="text-sm text-secondary">${summary}</div>`;
+  },
+
+  // Modal chi tiết giao dịch
+  showTxDetail: function(mshs) {
+    const reportRow = (this.state.reportRows || []).find(r => r.mshs === mshs);
+    if (!reportRow || !reportRow.txList || reportRow.txList.length === 0) {
+      Utils.showToast('Không có giao dịch nào cho học sinh này', 'info');
+      return;
+    }
+    const txList = reportRow.txList;
+    const typeLabels = { vtb: '🏦 VietinBank', tpb: '🏦 TPBank', cash: '💵 Tiền mặt' };
+    const rows = txList.map((tx, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${typeLabels[tx.type] || tx.type}</td>
+        <td>${tx.date}</td>
+        <td class="number" style="color: var(--color-success); font-weight:600;">${Utils.formatCurrency(tx.amount)}</td>
+        <td class="text-sm">${tx.description}</td>
+        <td class="text-sm">${tx.account || '—'}</td>
+      </tr>
+    `).join('');
+    const totalAmount = txList.reduce((sum, tx) => sum + tx.amount, 0);
+    Utils.showModal(
+      `🔍 Chi tiết giao dịch — ${reportRow.fullName} (${mshs})`,
+      `<div class="table-container" style="max-height:400px; overflow-y:auto;">
+        <table class="compact-table">
+          <thead><tr><th>#</th><th>Nguồn</th><th>Ngày</th><th>Số tiền</th><th>Nội dung</th><th>STK</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><td colspan="3" style="text-align:right; font-weight:600;">Tổng:</td><td class="number" style="font-weight:700; color:var(--color-success);">${Utils.formatCurrency(totalAmount)}</td><td colspan="2"></td></tr></tfoot>
+        </table>
+      </div>
+      <p class="text-sm text-secondary mt-2">HP: ${Utils.formatCurrency(reportRow.tongHocPhi)} — Trạng thái: ${reportRow.trangThai}</p>`
+    );
   },
 
   getStatusClass: function(status) {

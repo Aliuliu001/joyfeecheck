@@ -219,7 +219,8 @@ window.Reporter = {
         soTienThieu: soTienThieu,
         ghiChu: ghiChu,
         ghiChuGiaDinh: primaryRow.ghiChuGiaDinh || '',
-        coChuyenTKCongTy: paymentData.vtb > 0
+        coChuyenTKCongTy: paymentData.vtb > 0,
+        txList: paymentData.txList || []
       });
     }
 
