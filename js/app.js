@@ -1009,10 +1009,10 @@ window.App = {
       const newSTKs = this.state.vtbUnmatched.filter(t => !t.matchedMSHS);
       this.renderExceptions(newSTKs, this.state.tpbUnmatched);
     }
-    // Also re-render report if visible
+    // Also re-render report if visible (preserve current filter)
     const reportTab = document.getElementById('report-tab');
     if (reportTab && reportTab.classList.contains('active')) {
-      this.renderReportTable(this.state.reportRows);
+      this.applyReportFilters();
       this.renderSuspendedTable();
     }
   },
