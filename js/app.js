@@ -492,14 +492,27 @@ window.App = {
       return;
     }
 
-    tbody.innerHTML = rows.map(r => {
+    // Filter out suspended students
+    const monthYear = this.state.monthYear || '';
+    const suspended = Storage.getSuspendedForMonth(monthYear);
+    const suspendedSet = new Set(suspended.map(s => `${s.mshs}_${s.className}`));
+    const filteredRows = rows.filter(r => {
+      const classes = r.className ? r.className.split(',').map(c => c.trim()) : [];
+      // Keep row if at least one class is NOT suspended
+      return classes.some(c => !suspendedSet.has(`${r.mshs}_${c}`));
+    });
+
+    tbody.innerHTML = filteredRows.map(r => {
       const statusClass = this.getStatusClass(r.trangThai);
       const isWarning = (r.ghiChu || '').includes('⚠');
       const isOverpaid = r.trangThai === APP_CONFIG.STATUS.OVERPAID;
       const safeName = (r.fullName || '').replace(/'/g, "\\'");
       const safeMshs = (r.mshs || '').replace(/'/g, "\\'");
       return `<tr class="${isWarning ? 'warning-row' : ''}">
-        <td><button class="btn btn-xs btn-outline" title="Thêm gia đình" onclick="App.addFamilyGroupForStudent('${safeMshs}', '${safeName}')">➕</button></td>
+        <td>
+          <button class="btn btn-xs btn-outline" title="Thêm gia đình" onclick="App.addFamilyGroupForStudent('${safeMshs}', '${safeName}')">➕</button>
+          <button class="btn btn-xs btn-outline" title="Tạm ngưng" onclick="App.quickSuspend('${safeMshs}', '${safeName}')">⏸️</button>
+        </td>
         <td>${r.mshs || ''}</td>
         <td>${r.fullName || ''}</td>
         <td>${r.className || ''}</td>
@@ -930,6 +943,7 @@ window.App = {
     const reportTab = document.getElementById('report-tab');
     if (reportTab && reportTab.classList.contains('active')) {
       this.renderReportTable(this.state.reportRows);
+      this.renderSuspendedTable();
     }
   },
 
@@ -1975,6 +1989,195 @@ window.App = {
     Storage.removeReferral(refId);
     Utils.showToast('Đã xóa giới thiệu', 'success');
     this.loadSettingsUI();
+  },
+
+  // ========================
+  // ACTIONS: Suspended Students
+  // ========================
+  suspendStudentUI: function() {
+    const monthYear = this.state.monthYear || '';
+    const students = this.state.students || [];
+    const suspended = Storage.getSuspendedForMonth(monthYear);
+    const suspendedMSHS = new Set(suspended.map(s => `${s.mshs}_${s.className}`));
+    const activeStudents = students.filter(s => {
+      const classes = s.className ? s.className.split(',').map(c => c.trim()) : [];
+      return classes.length > 0 && !classes.some(c => suspendedMSHS.has(`${s.mshs}_${c}`));
+    });
+    const mshsOptions = activeStudents.map(s => `<option value="${s.mshs}">${s.mshs} - ${s.fullName}</option>`).join('');
+
+    Utils.showModal(
+      '⏸️ Tạm ngưng HS',
+      `
+      <div class="form-group mb-3">
+        <label>Chọn HS tạm ngưng</label>
+        <select id="input-sus-mshs" class="form-control" onchange="App.updateSuspendClasses()">
+          <option value="">-- Chọn MSHS --</option>
+          ${mshsOptions}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label>Chọn lớp tạm ngưng</label>
+        <select id="input-sus-class" class="form-control">
+          <option value="">-- Chọn HS trước --</option>
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label>Tháng</label>
+        <input type="text" id="input-sus-month" class="form-control" placeholder="YYYY-MM" value="${monthYear}">
+      </div>
+      <div class="form-group mb-3">
+        <label>Lý do (tùy chọn)</label>
+        <input type="text" id="input-sus-note" class="form-control" placeholder="VD: Bé bận, gia đình đi vắng">
+      </div>
+      `,
+      () => {
+        const mshs = document.getElementById('input-sus-mshs')?.value?.trim();
+        const className = document.getElementById('input-sus-class')?.value?.trim();
+        const susMonth = document.getElementById('input-sus-month')?.value?.trim();
+        const note = document.getElementById('input-sus-note')?.value?.trim();
+
+        if (!mshs || !className || !susMonth) {
+          Utils.showToast('Vui lòng chọn HS, lớp và tháng', 'error');
+          return false;
+        }
+        if (!/^\d{4}-\d{2}$/.test(susMonth)) {
+          Utils.showToast('Tháng phải có định dạng YYYY-MM', 'error');
+          return false;
+        }
+
+        const student = students.find(s => s.mshs === mshs);
+        const result = Storage.addSuspended({
+          mshs,
+          studentName: student?.fullName || '',
+          className,
+          monthYear: susMonth,
+          note
+        });
+
+        if (result.error) {
+          Utils.showToast(result.error, 'error');
+          return false;
+        }
+
+        Storage.addHistory({
+          action: 'Tạm ngưng lớp',
+          detail: `${mshs} (${student?.fullName || ''}) - lớp ${className} tháng ${susMonth}`
+        });
+
+        Utils.showToast(`Đã tạm ngưng ${mshs} - lớp ${className} tháng ${susMonth}`, 'success');
+        this.renderSuspendedTable();
+        this.runMatchingBackground();
+      }
+    );
+  },
+
+  updateSuspendClasses: function() {
+    const mshs = document.getElementById('input-sus-mshs')?.value;
+    const classSelect = document.getElementById('input-sus-class');
+    if (!mshs || !classSelect) return;
+    const students = this.state.students || [];
+    const student = students.find(s => s.mshs === mshs);
+    const classes = student?.className ? student.className.split(',').map(c => c.trim()) : [];
+    const monthYear = document.getElementById('input-sus-month')?.value || this.state.monthYear || '';
+    const suspended = Storage.getSuspendedForMonth(monthYear);
+    const suspendedClasses = new Set(suspended.filter(s => s.mshs === mshs).map(s => s.className));
+    const available = classes.filter(c => !suspendedClasses.has(c));
+    classSelect.innerHTML = available.length > 0
+      ? available.map(c => `<option value="${c}">${c}</option>`).join('')
+      : '<option value="">Tất cả lớp đã tạm ngưng</option>';
+  },
+
+  unsuspendStudent: function(susId) {
+    Storage.removeSuspended(susId);
+    Utils.showToast('Đã bỏ tạm ngưng', 'success');
+    this.renderSuspendedTable();
+    this.runMatchingBackground();
+  },
+
+  renderSuspendedTable: function() {
+    const monthYear = this.state.monthYear || '';
+    const suspended = Storage.getSuspendedForMonth(monthYear);
+    const tbody = document.querySelector('#table-suspended tbody');
+    if (!tbody) return;
+    if (suspended.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Không có HS tạm ngưng tháng này</td></tr>';
+      return;
+    }
+    tbody.innerHTML = suspended.map(s => `<tr>
+      <td>${s.mshs}</td>
+      <td>${s.studentName || ''}</td>
+      <td>${s.className}</td>
+      <td>${s.monthYear}</td>
+      <td class="text-sm">${s.note || ''}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="App.unsuspendStudent('${s.id}')">Bỏ ngưng</button></td>
+    </tr>`).join('');
+  },
+
+  // Tạm ngưng nhanh từ nút ⏸️ trong báo cáo
+  quickSuspend: function(mshs, fullName) {
+    const monthYear = this.state.monthYear || '';
+    const students = this.state.students || [];
+    const student = students.find(s => s.mshs === mshs);
+    const classes = student?.className ? student.className.split(',').map(c => c.trim()) : [];
+    const suspended = Storage.getSuspendedForMonth(monthYear);
+    const suspendedClasses = new Set(suspended.filter(s => s.mshs === mshs).map(s => s.className));
+    const available = classes.filter(c => !suspendedClasses.has(c));
+
+    if (available.length === 0) {
+      Utils.showToast(`${fullName} đã tạm ngưng tất cả lớp tháng này`, 'warning');
+      return;
+    }
+
+    Utils.showModal(
+      `⏸️ Tạm ngưng — ${fullName} (${mshs})`,
+      `
+      <div class="form-group mb-3">
+        <label>Lớp tạm ngưng</label>
+        <select id="input-sus-class" class="form-control">
+          ${available.map(c => `<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label>Tháng</label>
+        <input type="text" id="input-sus-month" class="form-control" value="${monthYear}" readonly style="background: var(--bg-tertiary);">
+      </div>
+      <div class="form-group mb-3">
+        <label>Lý do (tùy chọn)</label>
+        <input type="text" id="input-sus-note" class="form-control" placeholder="VD: Bé bận">
+      </div>
+      `,
+      () => {
+        const className = document.getElementById('input-sus-class')?.value?.trim();
+        const note = document.getElementById('input-sus-note')?.value?.trim();
+
+        if (!className) {
+          Utils.showToast('Vui lòng chọn lớp', 'error');
+          return false;
+        }
+
+        const result = Storage.addSuspended({
+          mshs,
+          studentName: fullName,
+          className,
+          monthYear,
+          note
+        });
+
+        if (result.error) {
+          Utils.showToast(result.error, 'error');
+          return false;
+        }
+
+        Storage.addHistory({
+          action: 'Tạm ngưng lớp',
+          detail: `${mshs} (${fullName}) - lớp ${className} tháng ${monthYear}`
+        });
+
+        Utils.showToast(`Đã tạm ngưng ${fullName} - lớp ${className}`, 'success');
+        this.renderSuspendedTable();
+        this.runMatchingBackground();
+      }
+    );
   },
 
   // ========================

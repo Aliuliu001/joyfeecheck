@@ -336,6 +336,35 @@ window.Storage = {
     return list.filter(r => !r.confirmed && r.applyMonth && r.applyMonth <= monthYear);
   },
 
+  // ========================
+  // TẠM NGƯNG LỚP
+  // ========================
+  addSuspended: function(sus) {
+    const list = this.loadSuspended();
+    // Chống trùng: HS + lớp + tháng đã tạm ngưng chưa?
+    const exists = list.find(s => s.mshs === sus.mshs && s.className === sus.className && s.monthYear === sus.monthYear);
+    if (exists) return { error: `${sus.mshs} lớp ${sus.className} đã tạm ngưng tháng ${sus.monthYear}` };
+    list.push({
+      id: 'sus_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      ...sus,
+      createdDate: new Date().toISOString()
+    });
+    this._set('joy_suspended', list);
+    return { success: true };
+  },
+  loadSuspended: function() {
+    return this._get('joy_suspended', []);
+  },
+  removeSuspended: function(susId) {
+    const list = this.loadSuspended().filter(s => s.id !== susId);
+    this._set('joy_suspended', list);
+    return list;
+  },
+  getSuspendedForMonth: function(monthYear) {
+    const list = this.loadSuspended();
+    return list.filter(s => s.monthYear === monthYear);
+  },
+
   // BACKUP & RESTORE
   exportFullBackup: function() {
     const backup = {};
