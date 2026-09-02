@@ -406,7 +406,7 @@ window.App = {
         this.state.vtbMatched.forEach(t => {
           if (t.matchedMSHS) vtbAmountByMSHS[t.matchedMSHS] = (vtbAmountByMSHS[t.matchedMSHS] || 0) + (Number(t.credit) || 0);
         });
-        this.state.changeRecords = Accounting.detectChanges(this.state.students, prevMonthDS, vtbMatchedMSHS, vtbAmountByMSHS, this.state.prevInvoiceStudents, this.state.currentInvoiceStudents);
+        this.state.changeRecords = Accounting.detectChanges(this.state.students, prevMonthDS, vtbMatchedMSHS, vtbAmountByMSHS, this.state.prevInvoiceStudents, this.state.currentInvoiceStudents, Storage.getSuspendedForMonth(this.state.monthYear || ''));
       } else {
         this.state.changeRecords = [];
       }
@@ -787,15 +787,15 @@ window.App = {
       case APP_CONFIG.CHANGE_TYPE.NEW:
         return { icon: '🆕', label: 'Tăng mới', rowClass: 'change-new' };
       case APP_CONFIG.CHANGE_TYPE.QUIT:
-        return { icon: '🚫', label: 'Nghỉ học', rowClass: 'change-quit' };
+        return { icon: '🚫', label: 'Giảm bớt', rowClass: 'change-quit' };
       case APP_CONFIG.CHANGE_TYPE.CLASS_CHANGE:
         return { icon: '🔄', label: 'Đổi lớp', rowClass: 'change-class' };
       case APP_CONFIG.CHANGE_TYPE.COMPANY_TRANSFER:
         return { icon: '💳', label: 'CK vào TK CT', rowClass: 'change-company' };
-      case 'giam_hoa_don':
-        return { icon: '📋', label: 'Giảm HĐ', rowClass: 'change-quit' };
+      case APP_CONFIG.CHANGE_TYPE.WRONG_AMOUNT:
+        return { icon: '⚠️', label: 'Sai tiền CK', rowClass: 'change-wrong' };
       case 'tang_hoa_don':
-        return { icon: '📋', label: 'Tăng HĐ', rowClass: 'change-new' };
+        return { icon: '📋', label: 'Tăng DS HĐ', rowClass: 'change-new' };
       default:
         return { icon: '❓', label: type, rowClass: '' };
     }
