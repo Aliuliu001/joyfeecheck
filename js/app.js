@@ -19,7 +19,9 @@ window.App = {
     reportRows: [],
     thucTeRows: [],
     ghiHDRows: [],
-    accountingData: null, // { tab1, tab2, tab3, tab4, tab5 }
+    accountingData: null, // { tab1, tab2, tab3, tab4, tab5, tab6 }
+    accTab4Choices: {}, // { mshs: 'nghi' | 'vanhoc' }
+    accTab4Confirmed: false,
     changeRecords: [],
     prevInvoiceStudents: [],
     prevThucTeStudents: [],
@@ -1065,17 +1067,8 @@ window.App = {
       </tr>
     `);
     
-    // Render Tab 4: Stop học nghỉ (with reason column)
-    this._renderAccTable('table-acc-tab4', data.tab4, (r, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${r.mshs}</td>
-        <td>${r.fullName}</td>
-        <td>${r.className}</td>
-        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td style="color: var(--danger-color); font-weight: 500;">${r.lyDo || ''}</td>
-      </tr>
-    `);
+    // Render Tab 4: Stop - nghỉ học (dynamic: choice → confirm → split)
+    this._renderAccTab4();
     
     // Render Tab 5: Tăng mới
     this._renderAccTable('table-acc-tab5', data.tab5, (r, idx) => `
@@ -1111,6 +1104,172 @@ window.App = {
       return;
     }
     tbody.innerHTML = rows.map((r, idx) => rowRenderer(r, idx)).join('');
+  },
+
+  // ========================
+  // ACCOUNTING TAB 4: Stop - nghỉ học (dynamic)
+  // ========================
+  _renderAccTab4: function() {
+    const data = this.state.accountingData;
+    const container = document.getElementById('acc-tab4-body');
+    if (!container || !data) return;
+
+    const tab4Rows = data.tab4 || [];
+    if (tab4Rows.length === 0) {
+      container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--text-secondary)">Không có dữ liệu</p>';
+      return;
+    }
+
+    if (this.state.accTab4Confirmed) {
+      // AFTER CONFIRM: split into 2 sections
+      this._renderAccTab4Confirmed(container, tab4Rows);
+    } else {
+      // BEFORE CONFIRM: show radio buttons
+      this._renderAccTab4Choices(container, tab4Rows);
+    }
+  },
+
+  _renderAccTab4Choices: function(container, tab4Rows) {
+    const choices = this.state.accTab4Choices;
+    const rows = tab4Rows.map((r, idx) => {
+      const checked = choices[r.mshs] || '';
+      return `<tr>
+        <td>${idx + 1}</td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+        <td style="color: var(--danger-color); font-weight: 500;">${r.lyDo || ''}</td>
+        <td>
+          <label style="cursor:pointer; margin-right:12px;">
+            <input type="radio" name="acc4_${r.mshs}" value="nghi" ${checked === 'nghi' ? 'checked' : ''} onchange="App.setAccTab4Choice('${r.mshs}', 'nghi')"> 🛑 Nghỉ
+          </label>
+          <label style="cursor:pointer;">
+            <input type="radio" name="acc4_${r.mshs}" value="vanhoc" ${checked === 'vanhoc' ? 'checked' : ''} onchange="App.setAccTab4Choice('${r.mshs}', 'vanhoc')"> 🔄 Vẫn học
+          </label>
+        </td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <p class="text-sm mb-2" style="color: var(--accent-yellow);">Chọn cho từng HS: <strong>🛑 Nghỉ</strong> (nghỉ thật sự) hoặc <strong>🔄 Vẫn học</strong> (đưa về Tab 3 Giảm bớt).</p>
+      <div class="table-container">
+        <table class="compact-table">
+          <thead>
+            <tr>
+              <th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th><th>Quyết định</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="mt-3" style="text-align:right;">
+        <button class="btn btn-primary" onclick="App.confirmAccTab4()">✅ Xác nhận</button>
+      </div>
+    `;
+  },
+
+  _renderAccTab4Confirmed: function(container, tab4Rows) {
+    const choices = this.state.accTab4Choices;
+    const nghiRows = tab4Rows.filter(r => choices[r.mshs] === 'nghi');
+    const vanhocRows = tab4Rows.filter(r => choices[r.mshs] === 'vanhoc');
+
+    let html = '';
+
+    // Section 1: Nghỉ luôn
+    if (nghiRows.length > 0) {
+      html += `<h4 style="margin-bottom:8px;">🛑 Xác nhận Nghỉ học (${nghiRows.length} HS)</h4>`;
+      html += `<div class="table-container mb-4"><table class="compact-table"><thead><tr>
+        <th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th>
+      </tr></thead><tbody>`;
+      nghiRows.forEach((r, idx) => {
+        html += `<tr>
+          <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
+          <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+          <td style="color: var(--danger-color);">${r.lyDo || ''}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    // Section 2: Vẫn học → chuyển Tab 3
+    if (vanhocRows.length > 0) {
+      html += `<h4 style="margin-bottom:8px;">🔄 Xác nhận Vẫn học (${vanhocRows.length} HS)</h4>`;
+      html += `<p class="text-sm text-secondary mb-2">Những HS này vẫn còn khả năng đóng tiền → chuyển sang Tab 3 Giảm bớt (Kế toán thêm vào).</p>`;
+      html += `<div class="table-container mb-3"><table class="compact-table"><thead><tr>
+        <th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th>
+      </tr></thead><tbody>`;
+      vanhocRows.forEach((r, idx) => {
+        html += `<tr>
+          <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
+          <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+      html += `<div style="text-align:right;">
+        <button class="btn btn-primary" onclick="App.moveToTab3()">📥 Đưa qua Tab 3 Giảm bớt</button>
+      </div>`;
+    }
+
+    if (nghiRows.length === 0 && vanhocRows.length === 0) {
+      html = '<p style="text-align:center; padding:20px; color:var(--text-secondary)">Không có dữ liệu</p>';
+    }
+
+    // Export button
+    html += `<div class="mt-3" style="text-align:right;">
+      <button class="btn btn-sm btn-outline" onclick="App.exportAccTab(4)">📥 Xuất Excel Tab này</button>
+    </div>`;
+
+    container.innerHTML = html;
+  },
+
+  setAccTab4Choice: function(mshs, choice) {
+    this.state.accTab4Choices[mshs] = choice;
+  },
+
+  confirmAccTab4: function() {
+    const data = this.state.accountingData;
+    if (!data) return;
+    // Check all are chosen
+    const allChosen = (data.tab4 || []).every(r => this.state.accTab4Choices[r.mshs]);
+    if (!allChosen) {
+      Utils.showToast('Vui lòng chọn cho tất cả học sinh', 'warning');
+      return;
+    }
+    this.state.accTab4Confirmed = true;
+    this._renderAccTab4();
+    Utils.showToast('Đã xác nhận! Kiểm tra kết quả bên dưới.', 'success');
+  },
+
+  moveToTab3: function() {
+    const data = this.state.accountingData;
+    if (!data) return;
+    const vanhocRows = (data.tab4 || []).filter(r => this.state.accTab4Choices[r.mshs] === 'vanhoc');
+    if (vanhocRows.length === 0) return;
+
+    // Add to tab3
+    const existingMshs = new Set(data.tab3.map(r => r.mshs));
+    for (const r of vanhocRows) {
+      if (!existingMshs.has(r.mshs)) {
+        data.tab3.push({ mshs: r.mshs, fullName: r.fullName, className: r.className, hocPhi: r.hocPhi, teacher: r.teacher || '' });
+      }
+    }
+    // Sort tab3
+    data.tab3.sort((a, b) => a.mshs.localeCompare(b.mshs));
+
+    // Remove from tab4
+    const movedMshs = new Set(vanhocRows.map(r => r.mshs));
+    data.tab4 = data.tab4.filter(r => !movedMshs.has(r.mshs));
+
+    // Clear choices for moved students
+    for (const mshs of movedMshs) {
+      delete this.state.accTab4Choices[mshs];
+    }
+
+    // Re-render
+    this.state.accTab4Confirmed = false; // Reset to show choices again for remaining
+    this.renderAccountingTabs();
+    Utils.showToast(`Đã chuyển ${vanhocRows.length} HS sang Tab 3 Giảm bớt`, 'success');
   },
 
 

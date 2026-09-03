@@ -343,7 +343,7 @@
         <button class="sub-tab-btn active" data-subtab="acc-tab1">📋 DS HĐ Tháng trước</button>
         <button class="sub-tab-btn" data-subtab="acc-tab2">🏦 DS CK VTB Tháng này</button>
         <button class="sub-tab-btn" data-subtab="acc-tab3">📉 Giảm bớt</button>
-        <button class="sub-tab-btn" data-subtab="acc-tab4">🛑 Stop học nghỉ</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab4">🛑 Stop - nghỉ học</button>
         <button class="sub-tab-btn" data-subtab="acc-tab5">📈 Tăng mới</button>
         <button class="sub-tab-btn" data-subtab="acc-tab6">⚠️ Chuyển tiền sai</button>
       </div>
@@ -374,7 +374,7 @@
         <div class="summary-card card error">
           <div class="card-icon">🛑</div>
           <div class="card-info">
-            <span class="card-label">Stop học nghỉ</span>
+            <span class="card-label">Stop - nghỉ học</span>
             <span class="card-value" id="acc-count-tab4">0</span>
           </div>
         </div>
@@ -447,8 +447,9 @@
       <!-- Sub-tab 3: Giảm bớt (còn cơ hội) -->
       <div id="acc-tab3" class="sub-tab-content">
         <div class="card glass-card mt-4">
-          <h3>📉 Giảm bớt — Còn cơ hội đóng tiền</h3>
+          <h3>📉 Giảm bớt</h3>
           <p class="text-sm text-secondary mb-2">Tháng trước có, tháng này chưa CK. Vẫn còn trong DS Tổng và HP &gt; 0 → cần nhắc/nhắc nợ.</p>
+          <p style="color: var(--accent-yellow); font-size: 13px; font-weight: 500;">(Kế toán thêm vào)</p>
           <div class="table-container">
             <table id="table-acc-tab3">
               <thead>
@@ -469,28 +470,13 @@
         </div>
       </div>
 
-      <!-- Sub-tab 4: Stop học nghỉ -->
+      <!-- Sub-tab 4: Stop - nghỉ học (dynamic: choice → confirm → split) -->
       <div id="acc-tab4" class="sub-tab-content">
         <div class="card glass-card mt-4">
-          <h3>🛑 Stop học nghỉ luôn — Hết cơ hội</h3>
-          <p class="text-sm text-secondary mb-2">Trong danh sách giảm bớt mà KHÔNG còn trong DS Tổng, hoặc HP = 0 → đã nghỉ học thật sự.</p>
-          <div class="table-container">
-            <table id="table-acc-tab4">
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>MSHS</th>
-                  <th>Họ tên</th>
-                  <th>Lớp</th>
-                  <th>Học phí</th>
-                  <th>Lý do</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="mt-3" style="text-align:right;">
-            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(4)">📥 Xuất Excel Tab này</button>
+          <h3>🛑 Stop - nghỉ học</h3>
+          <p class="text-sm text-secondary mb-2">Trong danh sách giảm bớt mà KHÔNG còn trong DS Tổng, hoặc HP = 0.</p>
+          <div id="acc-tab4-body">
+            <!-- Rendered by JS: before confirm = choice table; after confirm = 2 sections -->
           </div>
         </div>
       </div>
@@ -804,7 +790,7 @@
             <li><strong>Tab 1 — DS HĐ Tháng trước:</strong> Danh sách gốc từ file import Kế toán.</li>
             <li><strong>Tab 2 — DS CK VTB Tháng này:</strong> HS đã CK vào TK Công ty VietinBank.</li>
             <li><strong>Tab 3 — Giảm bớt:</strong> Tháng trước có, tháng này chưa CK → cần nhắc/nhắc nợ. Vẫn trong DS Tổng.</li>
-            <li><strong>Tab 4 — Stop học nghỉ:</strong> Trong Tab 3 mà KHÔNG còn trong DS Tổng hoặc HP=0 → đã nghỉ thật sự.</li>
+            <li><strong>Tab 4 — Stop - nghỉ học:</strong> Chọn 🛑Nghỉ hoặc 🔄Vẫn học cho từng HS. Bấm Xác nhận →HS "Vẫn học" chuyển sang Tab 3.</li>
             <li><strong>Tab 5 — Tăng mới:</strong> HS mới CK VTB tháng này mà tháng trước chưa có.</li>
             <li><strong>Tab 6 — Chuyển tiền sai:</strong> HS CK VTB nhưng số tiền ≠ HP quy định.</li>
             <li>Mỗi tab có nút <strong>"📥 Xuất Excel Tab này"</strong> — chỉ xuất dữ liệu tab đang xem.</li>
