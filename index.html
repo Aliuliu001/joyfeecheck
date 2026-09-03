@@ -39,6 +39,9 @@
     <button class="tab-btn" data-tab="report-tab">
       <span class="tab-icon">📊</span> Báo cáo Đối soát
     </button>
+    <button class="tab-btn" data-tab="accounting-tab">
+      <span class="tab-icon">📋</span> Báo cáo kế toán
+    </button>
     <button class="tab-btn" data-tab="settings-tab">
       <span class="tab-icon">⚙️</span> Cài đặt
     </button>
@@ -334,6 +337,175 @@
 
 
 
+    <!-- TAB: Báo cáo Kế toán (5 sub-tabs) -->
+    <section id="accounting-tab" class="tab-content">
+      <div class="sub-tab-bar">
+        <button class="sub-tab-btn active" data-subtab="acc-tab1">📋 DS HĐ Tháng trước</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab2">🏦 DS CK VTB Tháng này</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab3">📉 Giảm bớt</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab4">🛑 Stop học nghỉ</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab5">📈 Tăng mới</button>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="summary-cards" style="margin-bottom: 1rem;">
+        <div class="summary-card card">
+          <div class="card-icon">📋</div>
+          <div class="card-info">
+            <span class="card-label">DS HĐ tháng trước</span>
+            <span class="card-value" id="acc-count-tab1">0</span>
+          </div>
+        </div>
+        <div class="summary-card card success">
+          <div class="card-icon">🏦</div>
+          <div class="card-info">
+            <span class="card-label">CK VTB tháng này</span>
+            <span class="card-value" id="acc-count-tab2">0</span>
+          </div>
+        </div>
+        <div class="summary-card card warning">
+          <div class="card-icon">📉</div>
+          <div class="card-info">
+            <span class="card-label">Giảm bớt</span>
+            <span class="card-value" id="acc-count-tab3">0</span>
+          </div>
+        </div>
+        <div class="summary-card card error">
+          <div class="card-icon">🛑</div>
+          <div class="card-info">
+            <span class="card-label">Stop học nghỉ</span>
+            <span class="card-value" id="acc-count-tab4">0</span>
+          </div>
+        </div>
+        <div class="summary-card card info">
+          <div class="card-icon">📈</div>
+          <div class="card-info">
+            <span class="card-label">Tăng mới</span>
+            <span class="card-value" id="acc-count-tab5">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 1: DS HĐ Tháng trước -->
+      <div id="acc-tab1" class="sub-tab-content active">
+        <div class="card glass-card mt-4">
+          <h3>📋 DS HĐ Tháng trước</h3>
+          <p class="text-sm text-secondary mb-2">Danh sách gốc từ File Kế toán tháng trước. Đây là nguồn gốc, tất cả HS tháng trước.</p>
+          <div class="table-container">
+            <table id="table-acc-tab1">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp</th>
+                  <th>Học phí</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 2: DS CK VTB Tháng này -->
+      <div id="acc-tab2" class="sub-tab-content">
+        <div class="card glass-card mt-4">
+          <h3>🏦 DS CK VTB Tháng này</h3>
+          <p class="text-sm text-secondary mb-2">Học sinh đã chuyển khoản vào TK Công ty VietinBank tháng này.</p>
+          <div class="table-container">
+            <table id="table-acc-tab2">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp</th>
+                  <th>Học phí</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 3: Giảm bớt (còn cơ hội) -->
+      <div id="acc-tab3" class="sub-tab-content">
+        <div class="card glass-card mt-4">
+          <h3>📉 Giảm bớt — Còn cơ hội đóng tiền</h3>
+          <p class="text-sm text-secondary mb-2">Tháng trước có, tháng này chưa CK. Vẫn còn trong DS Tổng và HP &gt; 0 → cần nhắc/nhắc nợ.</p>
+          <div class="table-container">
+            <table id="table-acc-tab3">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp</th>
+                  <th>Học phí</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 4: Stop học nghỉ -->
+      <div id="acc-tab4" class="sub-tab-content">
+        <div class="card glass-card mt-4">
+          <h3>🛑 Stop học nghỉ luôn — Hết cơ hội</h3>
+          <p class="text-sm text-secondary mb-2">Trong danh sách giảm bớt mà KHÔNG còn trong DS Tổng, hoặc HP = 0 → đã nghỉ học thật sự.</p>
+          <div class="table-container">
+            <table id="table-acc-tab4">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp</th>
+                  <th>Học phí</th>
+                  <th>Lý do</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 5: Tăng mới -->
+      <div id="acc-tab5" class="sub-tab-content">
+        <div class="card glass-card mt-4">
+          <h3>📈 Tăng mới — Tháng này mới CK VTB</h3>
+          <p class="text-sm text-secondary mb-2">Học sinh CK VTB tháng này nhưng KHÔNG có trong DS HĐ tháng trước →HS mới.</p>
+          <div class="table-container">
+            <table id="table-acc-tab5">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp</th>
+                  <th>Học phí</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export button -->
+      <div class="action-panel mt-4" style="flex-direction: row; justify-content: center; gap: 8px; flex-wrap: wrap;">
+        <button id="btn-export-accounting" class="btn btn-primary">
+          📥 Xuất Báo cáo Kế toán (Excel)
+        </button>
+      </div>
+    </section>
+
+
     <!-- TAB 5: Cài đặt -->
     <section id="settings-tab" class="tab-content">
       <div class="grid-2col">
@@ -578,10 +750,13 @@
         <div class="mt-4" style="background: var(--card-bg); border-radius: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.05);">
           <h4>🔹 Bước 6: Xử lý Kế toán</h4>
           <ul style="margin-left: 20px; color: var(--text-secondary); line-height: 2;">
-            <li>Tab <strong>Báo cáo Kế toán</strong> → Bấm <strong>"Tự động chọn"</strong> để tick những HS cần viết Hóa đơn VAT (tự động = tháng trước có + CK vào TK công ty).</li>
-            <li>Kiểm tra lại danh sách, tick/bỏ tick bằng tay nếu cần.</li>
-            <li>Bấm <strong>"Xuất DS Kế toán"</strong> → File Excel đúng form công ty (3 sheets: Thực Tế, DS viết HĐ, Thay đổi).</li>
-            <li>Mở file ra kiểm tra: <em>Tang moi</em> (HS mới), <em>Giam bot</em> (HS nghỉ), tổng tiền, chữ ký Giám đốc.</li>
+            <li>Tab <strong>Báo cáo Kế toán</strong> → 5 tabs tự động so sánh DS HĐ tháng trước với DS CK VTB tháng này.</li>
+            <li><strong>Tab 1 — DS HĐ Tháng trước:</strong> Danh sách gốc từ file import Kế toán.</li>
+            <li><strong>Tab 2 — DS CK VTB Tháng này:</strong> HS đã CK vào TK Công ty VietinBank.</li>
+            <li><strong>Tab 3 — Giảm bớt:</strong> Tháng trước có, tháng này chưa CK → cần nhắc/nhắc nợ. Vẫn trong DS Tổng.</li>
+            <li><strong>Tab 4 — Stop học nghỉ:</strong> Trong Tab 3 mà KHÔNG còn trong DS Tổng hoặc HP=0 → đã nghỉ thật sự.</li>
+            <li><strong>Tab 5 — Tăng mới:</strong> HS mới CK VTB tháng này mà tháng trước chưa có.</li>
+            <li>Bấm <strong>"Xuất Báo cáo Kế toán (Excel)"</strong> để tải file 5 sheet.</li>
           </ul>
         </div>
 

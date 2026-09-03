@@ -220,6 +220,74 @@ window.Exporter = {
   },
 
   /**
+   * Export accounting report (5-tab comparison)
+   */
+  exportBaoCaoKeToan: function(data, monthYear) {
+    const wb = XLSX.utils.book_new();
+    const monthLabel = (monthYear || '').includes('-')
+      ? monthYear.split('-').reverse().join('.')
+      : (monthYear || '');
+
+    const createSheet = (aoa, colCount) => {
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      if (colCount) this.autoFitColumns(ws, null, colCount);
+      return ws;
+    };
+
+    const headers5 = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
+    const headers6 = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do'];
+
+    const buildAoA = (title, rows, extraHeaders) => {
+      const hdrs = extraHeaders || headers5;
+      const aoa = [
+        [APP_CONFIG.COMPANY_NAME],
+        [`BÁO CÁO KẾ TOÁN - ${title} - Tháng ${monthLabel}`],
+        [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
+        [],
+        hdrs
+      ];
+      let totalHP = 0;
+      rows.forEach((r, idx) => {
+        aoa.push([
+          idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0,
+          ...(extraHeaders === headers6 ? [r.lyDo || ''] : [])
+        ]);
+        totalHP += (r.hocPhi || 0);
+      });
+      aoa.push(['', '', '', 'TỔNG CỘNG', totalHP, ...(extraHeaders === headers6 ? [''] : [])]);
+      return aoa;
+    };
+
+    // Sheet 1: DS HĐ Tháng trước
+    XLSX.utils.book_append_sheet(wb,
+      createSheet(buildAoA('DS HĐ Tháng trước', data.tab1), headers5),
+      '1_DS_HĐ_tháng_trước');
+
+    // Sheet 2: DS CK VTB
+    XLSX.utils.book_append_sheet(wb,
+      createSheet(buildAoA('DS CK VTB Tháng này', data.tab2), headers5),
+      '2_DS_CK_VTB');
+
+    // Sheet 3: Giảm bớt
+    XLSX.utils.book_append_sheet(wb,
+      createSheet(buildAoA('Giảm bớt', data.tab3), headers5),
+      '3_Giảm_bớt');
+
+    // Sheet 4: Stop học nghỉ (with reason)
+    XLSX.utils.book_append_sheet(wb,
+      createSheet(buildAoA('Stop học nghỉ', data.tab4, headers6), headers6),
+      '4_Stop_học_nghỉ');
+
+    // Sheet 5: Tăng mới
+    XLSX.utils.book_append_sheet(wb,
+      createSheet(buildAoA('Tăng mới', data.tab5), headers5),
+      '5_Tăng_mới');
+
+    const filename = `BaoCaoKeToan_5Tabs_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
+    this.triggerDownload(wb, filename);
+  },
+
+  /**
    * Export reminder list for parents
    */
   exportNhacPH(nhacList, monthYear) {

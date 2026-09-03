@@ -1,12 +1,12 @@
 /**
- * JOY FEE CHECK - Accounting Module (v3 — simple set operations)
+ * JOY FEE CHECK - Accounting Module (v4 — 5-tab set operations)
  * 
- * 5 Tabs based on simple set differences:
- * Tab 1: DS HĐ Tháng trước (raw from prev invoice file)
- * Tab 2: DS CK VTB Tháng này (only students who CK to company VietinBank)
- * Tab 3: Tháng trước có, tháng này chưa CK (Tab1 - Tab2)
- * Tab 4: Giảm bớt (Tab3 students NOT in DS Tổng master)
- * Tab 5: Tăng mới (Tab2 - Tab1, new VTB transfers)
+ * 5 Tabs based on set operations:
+ * Tab 1: DS HĐ Tháng trước (raw from prev invoice file import)
+ * Tab 2: DS CK VTB Tháng này (students who CK to company VietinBank)
+ * Tab 3: Giảm bớt = (Tab1 - Tab2) ∩ IN master ∩ HP>0 (còn cơ hội đóng tiền)
+ * Tab 4: Stop học nghỉ = (Tab1 - Tab2) ∩ (NOT in master OR HP=0) (hết cơ hội)
+ * Tab 5: Tăng mới = Tab2 - Tab1 (new VTB transfers)
  */
 window.Accounting = {
   generateThucTe(students) {
@@ -26,12 +26,12 @@ window.Accounting = {
   },
 
   /**
-   * Simple set-based invoice comparison.
-   * 
-   * @param {Array} prevInvoiceStudents - Tab 1 data (MSHS strings or objects)
-   * @param {Set} vtbMatchedMSHS - MSHS that CK to VTB company account this month (Tab 2 data)
+   * Compute 5-tab accounting comparison.
+   *
+   * @param {Array} prevInvoiceStudents - Tab 1 data (MSHS strings or objects from "DS Ghi HĐ tháng trước")
+   * @param {Set} vtbMatchedMSHS - Unique MSHS that CK to VTB company account this month
    * @param {Map} currMap - MSHS → student object (from DS Tổng master)
-   * @returns {Object} { tab1, tab2, tab3, tab4, tab5, tongCKSai }
+   * @returns {Object} { tab1, tab2, tab3, tab4, tab5 }
    */
   computeInvoiceComparison(prevInvoiceStudents, vtbMatchedMSHS, currMap) {
     // Helper: normalize prevInvoiceStudents to array of MSHS strings
@@ -74,11 +74,21 @@ window.Accounting = {
     }
     tab2.sort((a, b) => a.mshs.localeCompare(b.mshs));
 
-    // Tab 3: Tháng trước có, tháng này chưa CK = Tab1 - Tab2
-    const tab3 = tab1.filter(r => !tab2Set.has(r.mshs));
+    // Tab1 - Tab2: Students in prev invoice but NOT in VTB transfers this month
+    const tab1MinusTab2 = tab1.filter(r => !tab2Set.has(r.mshs));
 
-    // Tab 4: Giảm bớt = Tab3 students NOT in DS Tổng master OR HP=0
-    const tab4 = tab3.filter(r => {
+    // Tab 3: Giảm bớt = (Tab1 - Tab2) ∩ IN master ∩ HP>0
+    // "Còn cơ hội đóng tiền" — still in DS Tổng, HP > 0
+    const tab3 = tab1MinusTab2.filter(r => {
+      const student = (currMap || new Map()).get(r.mshs);
+      if (!student) return false; // NOT in master → goes to tab4
+      if ((Number(student.hocPhi) || 0) === 0) return false; // HP=0 → goes to tab4
+      return true;
+    });
+
+    // Tab 4: Stop học nghỉ = (Tab1 - Tab2) ∩ (NOT in master OR HP=0)
+    // "Hết cơ hội" — đã nghỉ học thật sự
+    const tab4 = tab1MinusTab2.filter(r => {
       const student = (currMap || new Map()).get(r.mshs);
       if (!student) return true; // not in master at all
       if ((Number(student.hocPhi) || 0) === 0) return true; // HP=0
@@ -98,11 +108,6 @@ window.Accounting = {
 
     // Tab 5: Tăng mới = Tab2 - Tab1 (new VTB transfers not in prev invoice)
     const tab5 = tab2.filter(r => !prevSet.has(r.mshs));
-
-    // CK sai tiền: students in Tab2 with CK amount ≠ HP
-    const saiTienCK = [];
-    // Note: vtbAmountByMSHS needs to be passed in — but for now compute from tab2 + currMap
-    // We'll add this in the caller
 
     return { tab1, tab2, tab3, tab4, tab5, prevSet, tab2Set };
   },

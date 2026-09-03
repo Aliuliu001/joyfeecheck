@@ -19,7 +19,7 @@ window.App = {
     reportRows: [],
     thucTeRows: [],
     ghiHDRows: [],
-    // Accounting state removed — tab deleted
+    accountingData: null, // { tab1, tab2, tab3, tab4, tab5 }
     changeRecords: [],
     prevInvoiceStudents: [],
     prevThucTeStudents: [],
@@ -302,6 +302,8 @@ window.App = {
     });
     // Accounting export removed — tab deleted
     document.getElementById('btn-export-nhac-ph')?.addEventListener('click', () => this.exportNhacPH());
+    // Accounting report export (new 5-tab)
+    document.getElementById('btn-export-accounting')?.addEventListener('click', () => this.exportAccountingReport());
 
 
 
@@ -388,7 +390,8 @@ window.App = {
       // 5. Generate accounting — DS Master Tổng
       this.state.thucTeRows = Accounting.generateThucTe(this.state.students);
       
-      // 5.5. Accounting processing removed — tab deleted
+      // 5.5. Compute accounting comparison (5-tab set operations)
+      this.computeAccountingData();
 
       // 7. Get new STKs
       const newSTKs = Matcher.getNewSTKs(this.state.vtbTransactions, this.state.students, stkPhu);
@@ -398,7 +401,8 @@ window.App = {
       this.populateFilterDropdowns();
       this.renderReportTable(this.state.reportRows);
       this.renderExceptions(newSTKs, this.state.tpbUnmatched);
-      // Accounting tabs removed
+      // Render accounting tabs
+      this.renderAccountingTabs();
       this.renderSyncChanges();
 
       this.state.matchingDone = true;
@@ -892,6 +896,11 @@ window.App = {
       this.applyReportFilters();
       this.renderSuspendedTable();
     }
+    // Also re-render accounting tab if visible
+    const accTab = document.getElementById('accounting-tab');
+    if (accTab && accTab.classList.contains('active')) {
+      this.renderAccountingTabs();
+    }
   },
 
   // Bỏ qua giao dịch VietinBank (lưu vào storage để không hiện lại)
@@ -971,6 +980,122 @@ window.App = {
     // Kept for backward compatibility with any legacy UI references
   },
 
+  // ========================
+  // ACCOUNTING: Compute 5-tab comparison
+  // ========================
+  computeAccountingData: function() {
+    // Get prev invoice students (from file import "File Kế toán tháng trước")
+    const prevInvoiceStudents = this.state.prevInvoiceStudents || Storage._get('joy_prev_invoice_students', []);
+    
+    // Get VTB matched MSHS this month (unique set)
+    const vtbMatchedMSHS = new Set();
+    for (const tx of (this.state.vtbMatched || [])) {
+      if (tx.matchedMSHS) {
+        vtbMatchedMSHS.add(tx.matchedMSHS.toUpperCase());
+      }
+    }
+    
+    // Build currMap: MSHS → student object (DS Tổng master)
+    const currMap = new Map();
+    for (const s of (this.state.students || [])) {
+      if (s.mshs) currMap.set(s.mshs, s);
+    }
+    
+    // Compute the 5-tab comparison
+    this.state.accountingData = Accounting.computeInvoiceComparison(
+      prevInvoiceStudents, vtbMatchedMSHS, currMap
+    );
+  },
+
+  // ========================
+  // ACCOUNTING: Render 5 sub-tab tables
+  // ========================
+  renderAccountingTabs: function() {
+    const data = this.state.accountingData;
+    if (!data) {
+      console.log('No accounting data to render');
+      return;
+    }
+    
+    // Update summary counters
+    const setCount = (id, count) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = count;
+    };
+    setCount('acc-count-tab1', data.tab1.length);
+    setCount('acc-count-tab2', data.tab2.length);
+    setCount('acc-count-tab3', data.tab3.length);
+    setCount('acc-count-tab4', data.tab4.length);
+    setCount('acc-count-tab5', data.tab5.length);
+    
+    // Render Tab 1: DS HĐ Tháng trước
+    this._renderAccTable('table-acc-tab1', data.tab1, (r, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+      </tr>
+    `);
+    
+    // Render Tab 2: DS CK VTB Tháng này
+    this._renderAccTable('table-acc-tab2', data.tab2, (r, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+      </tr>
+    `);
+    
+    // Render Tab 3: Giảm bớt
+    this._renderAccTable('table-acc-tab3', data.tab3, (r, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+      </tr>
+    `);
+    
+    // Render Tab 4: Stop học nghỉ (with reason column)
+    this._renderAccTable('table-acc-tab4', data.tab4, (r, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+        <td style="color: var(--danger-color); font-weight: 500;">${r.lyDo || ''}</td>
+      </tr>
+    `);
+    
+    // Render Tab 5: Tăng mới
+    this._renderAccTable('table-acc-tab5', data.tab5, (r, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+      </tr>
+    `);
+  },
+  
+  _renderAccTable: function(tableId, rows, rowRenderer) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return;
+    if (!rows || rows.length === 0) {
+      const colCount = tableId === 'table-acc-tab4' ? 6 : 5;
+      tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:20px; color:var(--text-secondary)">Không có dữ liệu</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map((r, idx) => rowRenderer(r, idx)).join('');
+  },
+
 
 
   toggleSyncStatus: function(idx, checked) {
@@ -994,6 +1119,17 @@ window.App = {
     const stats = Reporter.getStatistics(this.state.reportRows);
     Exporter.exportBaoCao(this.state.reportRows, stats, monthYear);
     Utils.showToast('Đã xuất file báo cáo đối soát', 'success');
+  },
+
+  exportAccountingReport: function() {
+    const data = this.state.accountingData;
+    if (!data) {
+      Utils.showToast('Chưa có dữ liệu kế toán. Hãy chạy đối soát trước.', 'error');
+      return;
+    }
+    const monthYear = document.getElementById('month-selector')?.value || '';
+    Exporter.exportBaoCaoKeToan(data, monthYear);
+    Utils.showToast('Đã xuất file Báo cáo Kế toán', 'success');
   },
 
   // ========================
