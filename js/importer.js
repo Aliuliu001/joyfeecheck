@@ -397,8 +397,13 @@ window.Importer = {
           result.prevThucTe = students;
           console.log(`DS Thực tế tháng trước: ${students.length} HS (từ sheet "${sheetName}")`);
         } else {
-          // Fallback: use first sheet as prevThucTe, second as prevInvoice
-          if (result.prevThucTe.length === 0) {
+          // Fallback: unknown sheet name
+          // If only 1 sheet in file → treat as invoice list (prevInvoiceStudents)
+          // If 2+ sheets → first unknown = prevThucTe, second = prevInvoice
+          if (workbook.SheetNames.length === 1) {
+            result.prevInvoiceStudents = students;
+            console.log(`DS HĐ tháng trước (1 sheet fallback): ${students.length} HS (từ sheet "${sheetName}")`);
+          } else if (result.prevThucTe.length === 0) {
             result.prevThucTe = students;
           } else {
             result.prevInvoiceStudents = students;
