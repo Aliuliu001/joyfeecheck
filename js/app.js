@@ -307,9 +307,7 @@ window.App = {
     document.getElementById('btn-export-nhac-ph')?.addEventListener('click', () => this.exportNhacPH());
     document.getElementById('filter-thay-doi')?.addEventListener('change', (e) => this._filterThucTeChanges(e.target.value));
 
-    // Accounting sub-tab buttons
-    document.getElementById('btn-auto-select-invoice')?.addEventListener('click', () => this.autoSelectInvoice());
-    document.getElementById('check-all-invoice')?.addEventListener('change', (e) => this.toggleAllInvoice(e.target.checked));
+
 
     // Settings buttons
     document.getElementById('btn-set-prev-month')?.addEventListener('click', () => this.savePrevMonth());
@@ -1171,30 +1169,7 @@ window.App = {
     document.getElementById('invoice-selected-count').textContent = this.state.selectedHDMSHS.size;
   },
 
-  toggleAllInvoice: function(checked) {
-    this.state.ghiHDRows.forEach(r => {
-      if (checked) {
-        this.state.selectedHDMSHS.add(r.mshs);
-      } else if (!r.mandatory) {
-        this.state.selectedHDMSHS.delete(r.mshs);
-      }
-    });
-    this.renderInvoiceTable();
-  },
 
-  autoSelectInvoice: function() {
-    const prevHD = Storage.loadPrevMonthHD() || [];
-    const vtbMSHS = new Set(this.state.vtbMatched.map(t => t.matchedMSHS).filter(Boolean));
-    
-    this.state.selectedHDMSHS = new Set();
-    this.state.ghiHDRows.forEach(r => {
-      if (prevHD.includes(r.mshs) || vtbMSHS.has(r.mshs) || r.mandatory) {
-        this.state.selectedHDMSHS.add(r.mshs);
-      }
-    });
-    this.renderInvoiceTable();
-    Utils.showToast(`Đã tự động chọn ${this.state.selectedHDMSHS.size} học sinh`, 'success');
-  },
 
   toggleSyncStatus: function(idx, checked) {
     const changes = Storage.loadSyncChanges() || [];
