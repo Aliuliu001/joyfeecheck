@@ -109,6 +109,7 @@ window.Reporter = {
           if (fmshs === mshs) {
             // This is the current student - allocate what's left or their fee, whichever is smaller
             myAllocated = Math.min(pool, fFee);
+            pool -= myAllocated; // Trừ pool sau khi phân bổ
             break;
           } else {
             // Allocate to other students first
