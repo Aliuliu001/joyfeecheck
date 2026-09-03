@@ -341,8 +341,8 @@
       <div class="sub-tab-bar">
         <button class="sub-tab-btn active" data-subtab="acc-real">DS Thực tế</button>
         <button class="sub-tab-btn" data-subtab="acc-invoice">DS Ghi HĐ</button>
-        <button class="sub-tab-btn" data-subtab="acc-changes-hd">Thay đổi DS HĐ</button>
-        <button class="sub-tab-btn" data-subtab="acc-changes-real">Thay đổi DS Thực tế</button>
+        <button class="sub-tab-btn" data-subtab="acc-changes-hd">Thay đổi HĐ</button>
+        <button class="sub-tab-btn" data-subtab="acc-changes-real">Thay đổi DS</button>
       </div>
 
       <div id="acc-real" class="sub-tab-content active mt-4">
@@ -480,15 +480,15 @@
       <div id="acc-changes-real" class="sub-tab-content mt-4">
         <div class="card glass-card mb-3">
           <div class="flex-between">
-            <h3>🔄 Thay đổi DS Thực tế so với tháng trước</h3>
+            <h3>🔄 Thay đổi DS Thực tế</h3>
           </div>
-          <p class="text-sm text-secondary">Tổng quan thay đổi danh sách HS. Dùng để cập nhật file Excel master cho tháng sau.</p>
+          <p class="text-sm text-secondary">So sánh: DS HS tổng (import mới nhất) vs DS Thực tế tháng TRƯỚC (trong file Kế toán). Dùng để cập nhật file Kế toán.</p>
           <!-- Filter -->
           <div class="flex gap-2 mt-3 mb-3">
             <select id="filter-thay-doi" class="form-select" style="max-width:200px">
               <option value="all">📋 Tất cả thay đổi</option>
-              <option value="moi">🆕 HS mới</option>
-              <option value="nghiHoc">🚫 Nghỉ học</option>
+              <option value="moi">🆕 Cần thêm vào Kế toán</option>
+              <option value="nghiHoc">🚫 Không còn trong DS HS</option>
               <option value="doiLop">🔄 Đổi lớp</option>
               <option value="hpThayDoi">💰 HP thay đổi</option>
               <option value="tamNgung">⏸️ Tạm ngưng</option>

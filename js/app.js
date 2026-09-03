@@ -442,9 +442,13 @@ window.App = {
       );
 
       // Tab 2: Thay đổi DS Thực tế
-      const prevMonthDSTab2 = Storage.loadPrevMonthDS();
-      if (prevMonthDSTab2 && prevMonthDSTab2.length > 0) {
-        this.state.thucTeChanges = Accounting.detectThucTeChanges(prevMonthDSTab2, this.state.students, suspendedSet);
+      // So sánh: DS HS tổng (import đầu tiên) vs DS Thực tế tháng TRƯỚC (trong file Kế toán)
+      if (this.state.prevThucTeStudents && this.state.prevThucTeStudents.length > 0) {
+        this.state.thucTeChanges = Accounting.detectThucTeChanges(
+          this.state.prevThucTeStudents,  // DS Thực tế tháng TRƯỚC
+          this.state.students,             // DS HS tổng (import đầu tiên)
+          suspendedSet
+        );
       } else {
         this.state.thucTeChanges = { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] };
       }
@@ -826,9 +830,9 @@ window.App = {
 
     // Flatten all changes into one table with type label
     const allChanges = [];
-    tc.moi.forEach(c => allChanges.push({ ...c, type: 'moi', typeLabel: '🆕 HS mới' }));
-    tc.nghiHoc.forEach(c => allChanges.push({ ...c, type: 'nghiHoc', typeLabel: '🚫 Nghỉ học' }));
-    tc.doiLop.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.classNameNew || c.classNameOld, hocPhi: c.hocPhi, type: 'doiLop', typeLabel: `🔄 ${c.classNameOld} → ${c.classNameNew}`, ghiChu: c.ghiChu }));
+    tc.moi.forEach(c => allChanges.push({ ...c, type: 'moi', typeLabel: '🆕 Cần thêm vào Kế toán' }));
+    tc.nghiHoc.forEach(c => allChanges.push({ ...c, type: 'nghiHoc', typeLabel: '🚫 Không còn trong DS HS' }));
+    tc.doiLop.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.classNameNew || c.classNameOld, hocPhi: c.hocPhi, type: 'doiLop', typeLabel: `🔄 Lớp: ${c.classNameOld} → ${c.classNameNew}`, ghiChu: c.ghiChu }));
     tc.hpThayDoi.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.className, hocPhi: c.hocPhiNew, type: 'hpThayDoi', typeLabel: '💰 HP thay đổi', ghiChu: c.ghiChu }));
     tc.tamNgung.forEach(c => allChanges.push({ ...c, type: 'tamNgung', typeLabel: '⏸️ Tạm ngưng' }));
 
