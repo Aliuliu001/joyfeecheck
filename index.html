@@ -39,9 +39,6 @@
     <button class="tab-btn" data-tab="report-tab">
       <span class="tab-icon">📊</span> Báo cáo Đối soát
     </button>
-    <button class="tab-btn" data-tab="accounting-tab">
-      <span class="tab-icon">📋</span> Báo cáo Kế toán
-    </button>
     <button class="tab-btn" data-tab="settings-tab">
       <span class="tab-icon">⚙️</span> Cài đặt
     </button>
@@ -335,129 +332,6 @@
       </div>
     </section>
 
-
-    <!-- TAB 4: Báo cáo Kế toán (v3 — 5 sub-tabs) -->
-    <section id="accounting-tab" class="tab-content">
-      <h2>📊 Báo cáo Kế toán</h2>
-      
-      <div class="sub-tab-bar">
-        <button class="sub-tab-btn active" data-subtab="tab-1">DS HĐ Tháng trước</button>
-        <button class="sub-tab-btn" data-subtab="tab-2">DS CK VTB Tháng này</button>
-        <button class="sub-tab-btn" data-subtab="tab-3">Giảm bớt</button>
-        <button class="sub-tab-btn" data-subtab="tab-4">Stop học nghỉ luôn</button>
-        <button class="sub-tab-btn" data-subtab="tab-5">Tăng mới</button>
-      </div>
-
-      <!-- TAB 1: DS HĐ Tháng trước -->
-      <div id="tab-1" class="sub-tab-content active mt-4">
-        <div class="card glass-card">
-          <div class="flex-between mb-3">
-            <h3>📋 DS Hoá đơn Tháng trước <span id="tab1-month" class="text-sm text-secondary"></span></h3>
-            <span class="badge" id="tab1-count">0 HS</span>
-          </div>
-          <p class="text-sm text-secondary mb-3">Danh sách Ghi HĐ từ file Kế toán tháng trước.</p>
-          <div class="table-container">
-            <table id="table-tab1">
-              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th><th>Ghi chú</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 2: DS CK VTB Tháng này -->
-      <div id="tab-2" class="sub-tab-content mt-4">
-        <div class="card glass-card">
-          <div class="flex-between mb-3">
-            <h3>💳 DS CK VTB Tháng <span id="tab2-month"></span></h3>
-            <span class="badge" id="tab2-count">0 HS</span>
-          </div>
-          <p class="text-sm text-secondary mb-3">Học viên chuyển tiền vào tài khoản công ty VietinBank tháng này.</p>
-          <div class="flex gap-3 mb-3 text-sm">
-            <span>Tổng HP: <b id="tab2-total">0đ</b></span>
-          </div>
-          <div class="table-container">
-            <table id="table-tab2">
-              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 3: Tháng trước có, tháng này chưa CK -->
-      <div id="tab-3" class="sub-tab-content mt-4">
-        <div class="card glass-card">
-          <div class="flex-between mb-3">
-            <h3>📉 Giảm bớt <span id="tab3-month" class="text-sm text-secondary"></span></h3>
-            <span class="badge warning" id="tab3-count">0 HS</span>
-          </div>
-          <p class="text-sm text-secondary mb-3">Học viên có trong DS HĐ tháng trước nhưng tháng này CHƯA chuyển khoản vào TK Công ty.</p>
-          <div class="table-container">
-            <table id="table-tab3">
-              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 4: Giảm bớt -->
-      <div id="tab-4" class="sub-tab-content mt-4">
-        <div class="card glass-card">
-          <div class="flex-between mb-3">
-            <h3>🚫 Stop học nghỉ luôn <span id="tab4-month" class="text-sm text-secondary"></span></h3>
-            <span class="badge error" id="tab4-count">0 HS</span>
-          </div>
-          <p class="text-sm text-secondary mb-3">Học viên trong Tab 3 đã KHÔNG còn trong DS Tổng hoặc HP = 0 — ngừng học thật sự.</p>
-          <div class="table-container">
-            <table id="table-tab4">
-              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 5: Tăng mới -->
-      <div id="tab-5" class="sub-tab-content mt-4">
-        <div class="card glass-card">
-          <div class="flex-between mb-3">
-            <h3>📈 Tăng mới <span id="tab5-month" class="text-sm text-secondary"></span></h3>
-            <span class="badge success" id="tab5-count">0 HS</span>
-          </div>
-          <p class="text-sm text-secondary mb-3">Học viên mới CK VTB tháng này, KHÔNG có trong DS HĐ tháng trước.</p>
-          <div class="table-container">
-            <table id="table-tab5">
-              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- CK SAI TIỀN (below all tabs) -->
-      <div class="card glass-card mt-4">
-        <div class="flex-between mb-3">
-          <h3>⚠️ CK Sai Tiền</h3>
-          <span class="badge warning" id="sai-count">0 HS</span>
-        </div>
-        <p class="text-sm text-secondary mb-3">Học viên CK VTB tháng này nhưng số tiền ≠ HP thực tế.</p>
-        <div class="table-container">
-          <table id="table-sai-tien">
-            <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP thực tế</th><th>Đã CK</th><th>Chênh lệch</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="action-panel mt-4">
-        <button id="btn-export-accounting" class="btn btn-primary">📥 Xuất Excel Báo cáo Kế toán</button>
-      </div>
-      <div class="text-sm text-secondary mt-2" style="text-align:center;">
-        File xuất gồm 4 sheet: <b>Thực Tế</b> → <b>DS Ghi HĐ</b> → <b>Thay đổi HĐ</b> → <b>Thay đổi DS</b>
-      </div>
-    </section>
 
 
     <!-- TAB 5: Cài đặt -->

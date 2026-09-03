@@ -19,8 +19,7 @@ window.App = {
     reportRows: [],
     thucTeRows: [],
     ghiHDRows: [],
-    invoiceComparison: null, // result of Accounting.computeInvoiceComparison()
-    saiTienCK: [],           // CK sai tien results
+    // Accounting state removed — tab deleted
     changeRecords: [],
     prevInvoiceStudents: [],
     prevThucTeStudents: [],
@@ -301,7 +300,7 @@ window.App = {
         monthYear: document.getElementById('month-selector')?.value || ''
       });
     });
-    document.getElementById('btn-export-accounting')?.addEventListener('click', () => this.exportAccounting());
+    // Accounting export removed — tab deleted
     document.getElementById('btn-export-nhac-ph')?.addEventListener('click', () => this.exportNhacPH());
 
 
@@ -389,29 +388,7 @@ window.App = {
       // 5. Generate accounting — DS Master Tổng
       this.state.thucTeRows = Accounting.generateThucTe(this.state.students);
       
-      // 5.5. Simple set-based invoice comparison (5 tabs)
-      const prevMonthHD = Storage.loadPrevMonthHD() || [];
-      const vtbMatchedMSHS = new Set(this.state.vtbMatched.map(t => t.matchedMSHS).filter(Boolean));
-
-      // Build currMap (MSHS -> student)
-      const currMap = new Map();
-      for (const s of this.state.students) {
-        if (!currMap.has(s.mshs)) currMap.set(s.mshs, s);
-      }
-
-      // Map MSHS -> tong CK VietinBank (TK Cong ty)
-      const vtbAmountByMSHS = {};
-      this.state.vtbMatched.forEach(t => {
-        if (t.matchedMSHS) vtbAmountByMSHS[t.matchedMSHS] = (vtbAmountByMSHS[t.matchedMSHS] || 0) + (Number(t.credit) || 0);
-      });
-
-      // Simple 5-tab computation
-      const comparison = Accounting.computeInvoiceComparison(prevMonthHD, vtbMatchedMSHS, currMap);
-      const saiTienCK = Accounting.detectSaiTienCK(comparison.tab2, vtbAmountByMSHS, currMap);
-
-      this.state.invoiceComparison = comparison;
-      this.state.saiTienCK = saiTienCK;
-      this.state.ghiHDRows = comparison.tab2; // keep for export compatibility
+      // 5.5. Accounting processing removed — tab deleted
 
       // 7. Get new STKs
       const newSTKs = Matcher.getNewSTKs(this.state.vtbTransactions, this.state.students, stkPhu);
@@ -421,7 +398,7 @@ window.App = {
       this.populateFilterDropdowns();
       this.renderReportTable(this.state.reportRows);
       this.renderExceptions(newSTKs, this.state.tpbUnmatched);
-      this.renderAccountingTabs();
+      // Accounting tabs removed
       this.renderSyncChanges();
 
       this.state.matchingDone = true;
@@ -680,71 +657,6 @@ window.App = {
       exceptionCounter.textContent = totalExceptions;
       exceptionCounter.style.display = totalExceptions > 0 ? 'inline-flex' : 'none';
     }
-  },
-
-  // ========================
-  // RENDER: Accounting Tabs (v3 — 5 sub-tabs)
-  // ========================
-  renderAccountingTabs: function() {
-    const c = this.state.invoiceComparison;
-    const saiTien = this.state.saiTienCK || [];
-    const my = this.state.monthYear || '';
-    const monthLabel = my ? my.split('-').reverse().join('.') : '...';
-
-    // Tab 1: DS HĐ Tháng trước
-    this._renderAccTab('table-tab1', c ? c.tab1 : [], ['STT', 'MSHS', 'Mã lớp', 'Họ tên', 'GV', 'Học phí', 'Ghi chú'], 'tab1-count',
-      (r, i) => `<td>${i+1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher||''}</td><td class="number">${Utils.formatCurrency(r.hocPhi)}</td><td>${r.ghiChu||''}</td>`);
-
-    // Tab 2: DS CK VTB Tháng này
-    this._renderAccTab('table-tab2', c ? c.tab2 : [], ['STT', 'MSHS', 'Mã lớp', 'Họ tên', 'GV', 'Học phí'], 'tab2-count',
-      (r, i) => `<td>${i+1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher||''}</td><td class="number">${Utils.formatCurrency(r.hocPhi)}</td>`);
-    const tab2Total = (c ? c.tab2 : []).reduce((sum, r) => sum + (Number(r.hocPhi) || 0), 0);
-    const tab2TotalEl = document.getElementById('tab2-total');
-    if (tab2TotalEl) tab2TotalEl.textContent = Utils.formatCurrency(tab2Total);
-
-    // Tab 3: Tháng trước có, tháng này chưa CK
-    this._renderAccTab('table-tab3', c ? c.tab3 : [], ['STT', 'MSHS', 'Mã lớp', 'Họ tên', 'GV', 'Học phí'], 'tab3-count',
-      (r, i) => `<td>${i+1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher||''}</td><td class="number">${Utils.formatCurrency(r.hocPhi)}</td>`);
-
-    // Tab 4: Giảm bớt
-    this._renderAccTab('table-tab4', c ? c.tab4 : [], ['MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do'], 'tab4-count',
-      (r) => `<td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td><td class="number">${Utils.formatCurrency(r.hocPhi)}</td><td>${r.lyDo}</td>`);
-
-    // Tab 5: Tăng mới
-    this._renderAccTab('table-tab5', c ? c.tab5 : [], ['MSHS', 'Họ tên', 'Lớp', 'Học phí'], 'tab5-count',
-      (r) => `<td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td><td class="number">${Utils.formatCurrency(r.hocPhi)}</td>`);
-
-    // CK sai tiền section
-    const saiBody = document.querySelector('#table-sai-tien tbody');
-    if (saiBody) {
-      saiBody.innerHTML = saiTien.length === 0
-        ? '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Không có</td></tr>'
-        : saiTien.map(c => `<tr><td>${c.mshs}</td><td>${c.fullName}</td><td>${c.className}</td><td class="number">${Utils.formatCurrency(c.hocPhi)}</td><td class="number">${Utils.formatCurrency(c.ckNop)}</td><td class="number" style="color:${c.chenhLech < 0 ? 'var(--color-danger)' : 'var(--color-warning)'}">${c.lyDo}</td></tr>`).join('');
-      const saiEl = document.getElementById('sai-count');
-      if (saiEl) saiEl.textContent = `${saiTien.length} HS`;
-    }
-
-    // Month labels
-    const ml1 = document.getElementById('tab1-month');
-    if (ml1) ml1.textContent = monthLabel;
-    const ml2 = document.getElementById('tab2-month');
-    if (ml2) ml2.textContent = monthLabel;
-    const ml3 = document.getElementById('tab3-month');
-    if (ml3) ml3.textContent = monthLabel;
-    const ml4 = document.getElementById('tab4-month');
-    if (ml4) ml4.textContent = monthLabel;
-    const ml5 = document.getElementById('tab5-month');
-    if (ml5) ml5.textContent = monthLabel;
-  },
-
-  _renderAccTab: function(tableId, rows, headers, countId, rowFn) {
-    const tbody = document.querySelector(`#${tableId} tbody`);
-    if (!tbody) return;
-    tbody.innerHTML = rows.length === 0
-      ? `<tr><td colspan="${headers.length}" style="text-align:center;color:var(--text-secondary)">Không có dữ liệu</td></tr>`
-      : rows.map((r, i) => `<tr>${rowFn(r, i)}</tr>`).join('');
-    const countEl = document.getElementById(countId);
-    if (countEl) countEl.textContent = `${rows.length} HS`;
   },
 
   getChangeTypeInfo: function(type) {
@@ -1082,14 +994,6 @@ window.App = {
     const stats = Reporter.getStatistics(this.state.reportRows);
     Exporter.exportBaoCao(this.state.reportRows, stats, monthYear);
     Utils.showToast('Đã xuất file báo cáo đối soát', 'success');
-  },
-
-  exportAccounting: function() {
-    if (!this.state.thucTeRows.length) { Utils.showToast('Chưa có dữ liệu kế toán', 'error'); return; }
-    const monthYear = document.getElementById('month-selector')?.value || '';
-    // v2: all ghiHDRows (Groups A+B) are included
-    Exporter.exportKeToan(this.state.thucTeRows, this.state.ghiHDRows, this.state.invoiceChanges, monthYear);
-    Utils.showToast('Đã xuất file báo cáo kế toán', 'success');
   },
 
   // ========================
