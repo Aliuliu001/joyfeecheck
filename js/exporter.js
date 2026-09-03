@@ -160,9 +160,10 @@ window.Exporter = {
     this.autoFitColumns(wsGhiHD, ghiHDRows, headers);
     XLSX.utils.book_append_sheet(wb, wsGhiHD, 'Danh sách viết HĐ');
 
-    // 3. Sheet "Thay đổi" — Tăng/Giảm DS Ghi HĐ
+    // 3. Sheet "Thay đổi DS HĐ" — Tăng/Giảm + CK sai tiền
     const tangMoi = (invoiceChanges && invoiceChanges.tangMoi) || [];
     const giamBot = (invoiceChanges && invoiceChanges.giamBot) || [];
+    const saiTienCK = (invoiceChanges && invoiceChanges.saiTienCK) || [];
     const thayDoiHeaders = ['MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do'];
 
     const aoaThayDoi = [
@@ -195,13 +196,24 @@ window.Exporter = {
       aoaThayDoi.push(['', '', '', '', `Tổng giảm: ${giamBot.length} HS`]);
     }
 
-    if (tangMoi.length === 0 && giamBot.length === 0) {
+    // CK SAI TIỀN
+    if (saiTienCK.length > 0) {
+      aoaThayDoi.push([]);
+      aoaThayDoi.push(['⚠️ CK SAI TIỀN — CK VTB sai HP quy định']);
+      aoaThayDoi.push(['MSHS', 'Họ tên', 'Lớp', 'HP quy định', 'Đã CK', 'Chênh lệch']);
+      saiTienCK.forEach(item => {
+        aoaThayDoi.push([item.mshs, item.fullName, item.className, item.hocPhi, item.ckNop, item.lyDo]);
+      });
+      aoaThayDoi.push(['', '', '', '', '', `Tổng: ${saiTienCK.length} HS sai tiền`]);
+    }
+
+    if (tangMoi.length === 0 && giamBot.length === 0 && saiTienCK.length === 0) {
       aoaThayDoi.push(['Không có thay đổi so với tháng trước']);
     }
 
     const wsThayDoi = XLSX.utils.aoa_to_sheet(aoaThayDoi);
-    this.autoFitColumns(wsThayDoi, tangMoi.concat(giamBot), thayDoiHeaders);
-    XLSX.utils.book_append_sheet(wb, wsThayDoi, 'Thay đổi');
+    this.autoFitColumns(wsThayDoi, tangMoi.concat(giamBot).concat(saiTienCK), thayDoiHeaders);
+    XLSX.utils.book_append_sheet(wb, wsThayDoi, 'Thay đổi DS HĐ');
 
     const filename = `BaoCao_KeToan_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
