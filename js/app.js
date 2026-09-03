@@ -411,6 +411,12 @@ window.App = {
         if (!currMap.has(s.mshs)) currMap.set(s.mshs, s);
       }
 
+      // Map MSHS -> tong CK VietinBank (TK Cong ty) de kiem tra sai so tien
+      const vtbAmountByMSHS = {};
+      this.state.vtbMatched.forEach(t => {
+        if (t.matchedMSHS) vtbAmountByMSHS[t.matchedMSHS] = (vtbAmountByMSHS[t.matchedMSHS] || 0) + (Number(t.credit) || 0);
+      });
+
       // Build sets for quick lookup
       const suspendedSet = new Set(suspended.map(s => s.mshs));
       const freeTuitionSet = new Set();
