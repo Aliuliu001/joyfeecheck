@@ -24,6 +24,7 @@ window.App = {
     invoiceChanges: { tangMoi: [], giamBot: [], saiTienCK: [] },
     thucTeChanges: { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] },
     prevInvoiceStudents: [],
+    prevThucTeStudents: [],
     currentInvoiceStudents: [],
     monthYear: '',
     importStatus: {
@@ -53,6 +54,7 @@ window.App = {
     this.checkPendingReferrals();
     // Load prev invoice students from storage
     this.state.prevInvoiceStudents = Storage._get('joy_prev_invoice_students', []);
+    this.state.prevThucTeStudents = Storage._get('joy_prev_thuc_te_students', []);
     console.log('Joy Fee Check initialized successfully.');
   },
 
@@ -242,11 +244,16 @@ window.App = {
         this.state.cashPayments = await Importer.parseTienMat(file);
         result = this.state.cashPayments;
       } else if (type === 'prevInvoice') {
-        this.state.prevInvoiceStudents = await Importer.parsePrevInvoice(file);
-        result = this.state.prevInvoiceStudents;
+        const prevData = await Importer.parsePrevInvoiceFile(file);
+        this.state.prevInvoiceStudents = prevData.prevInvoiceStudents;
+        this.state.prevThucTeStudents = prevData.prevThucTe;
+        result = prevData.prevInvoiceStudents;
         // Save to storage for comparison
         if (result && result.length > 0) {
           Storage._set('joy_prev_invoice_students', result);
+        }
+        if (prevData.prevThucTe && prevData.prevThucTe.length > 0) {
+          Storage._set('joy_prev_thuc_te_students', prevData.prevThucTe);
         }
       }
 
