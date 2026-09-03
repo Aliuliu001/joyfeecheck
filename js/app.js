@@ -19,13 +19,11 @@ window.App = {
     reportRows: [],
     thucTeRows: [],
     ghiHDRows: [],
-    selectedHDMSHS: new Set(),
+    invoiceClassification: null, // result of Accounting.classifyInvoiceStudents()
     changeRecords: [],
     invoiceChanges: { tangMoi: [], giamBot: [], saiTienCK: [] },
-    thucTeChanges: { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] },
     prevInvoiceStudents: [],
     prevThucTeStudents: [],
-    currentInvoiceStudents: [],
     monthYear: '',
     importStatus: {
       dsHocSinh: false,
@@ -305,7 +303,6 @@ window.App = {
     });
     document.getElementById('btn-export-accounting')?.addEventListener('click', () => this.exportAccounting());
     document.getElementById('btn-export-nhac-ph')?.addEventListener('click', () => this.exportNhacPH());
-    document.getElementById('filter-thay-doi')?.addEventListener('change', (e) => this._filterThucTeChanges(e.target.value));
 
 
 
@@ -389,25 +386,12 @@ window.App = {
       this.state.reportRows = Reporter.generateReport(this.state.students, paymentsByMSHS, familyGroups, this.state.monthYear || '');
       const stats = Reporter.getStatistics(this.state.reportRows);
 
-      // 5. Generate accounting
+      // 5. Generate accounting — DS Master Tổng
       this.state.thucTeRows = Accounting.generateThucTe(this.state.students);
       
+      // 5.5. UNION-based invoice classification (shared for Tab 2 + Tab 3)
       const prevMonthHD = Storage.loadPrevMonthHD() || [];
       const vtbMatchedMSHS = new Set(this.state.vtbMatched.map(t => t.matchedMSHS).filter(Boolean));
-      const ghiHDResult = Accounting.generateGhiHD(this.state.thucTeRows, prevMonthHD, vtbMatchedMSHS);
-      this.state.ghiHDRows = ghiHDResult.rows;
-      this.state.selectedHDMSHS = ghiHDResult.selectedMSHS;
-      
-      // Set currentInvoiceStudents from ghiHDRows (for comparison with prev month)
-      this.state.currentInvoiceStudents = this.state.ghiHDRows.map(r => ({
-        mshs: r.mshs,
-        fullName: r.fullName,
-        className: r.className,
-        hocPhi: r.hocPhi
-      }));
-
-      // 6. Detect changes (Tăng/Giảm DS Ghi HĐ)
-      const prevMonthDS = Storage.loadPrevMonthDS();
       const suspended = Storage.getSuspendedForMonth(this.state.monthYear || '');
 
       // Build currMap (MSHS -> student)
@@ -416,40 +400,29 @@ window.App = {
         if (!currMap.has(s.mshs)) currMap.set(s.mshs, s);
       }
 
-      // Map MSHS -> tong CK VietinBank (TK Cong ty) de kiem tra sai so tien
+      // Map MSHS -> tong CK VietinBank (TK Cong ty)
       const vtbAmountByMSHS = {};
       this.state.vtbMatched.forEach(t => {
         if (t.matchedMSHS) vtbAmountByMSHS[t.matchedMSHS] = (vtbAmountByMSHS[t.matchedMSHS] || 0) + (Number(t.credit) || 0);
       });
 
-      // Build sets for quick lookup
-      const suspendedSet = new Set(suspended.map(s => s.mshs));
+      // Build freeTuitionSet
       const freeTuitionSet = new Set();
       for (const [mshs, s] of currMap.entries()) {
         if ((Number(s.hocPhi) || 0) === 0) freeTuitionSet.add(mshs);
       }
 
-      this.state.invoiceChanges = Accounting.detectChanges(
-        this.state.prevInvoiceStudents,
-        this.state.currentInvoiceStudents,
-        currMap,
+      // Single shared classification → Tab 2 + Tab 3
+      this.state.invoiceClassification = Accounting.classifyInvoiceStudents(
+        this.state.students,       // DS_Tong_ThangNay
+        prevMonthHD,               // DS_HD_ThangTruoc
         vtbMatchedMSHS,
-        suspendedSet,
+        currMap,
         freeTuitionSet,
         vtbAmountByMSHS
       );
-
-      // Tab 2: Thay đổi DS Thực tế
-      // So sánh: DS HS tổng (import đầu tiên) vs DS Thực tế tháng TRƯỚC (trong file Kế toán)
-      if (this.state.prevThucTeStudents && this.state.prevThucTeStudents.length > 0) {
-        this.state.thucTeChanges = Accounting.detectThucTeChanges(
-          this.state.prevThucTeStudents,  // DS Thực tế tháng TRƯỚC
-          this.state.students,             // DS HS tổng (import đầu tiên)
-          suspendedSet
-        );
-      } else {
-        this.state.thucTeChanges = { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] };
-      }
+      this.state.ghiHDRows = this.state.invoiceClassification.tab2Rows;
+      this.state.invoiceChanges = this.state.invoiceClassification.tab3Changes;
 
       // 7. Get new STKs
       const newSTKs = Matcher.getNewSTKs(this.state.vtbTransactions, this.state.students, stkPhu);
@@ -721,38 +694,31 @@ window.App = {
   },
 
   // ========================
-  // RENDER: Accounting Tabs
+  // RENDER: Accounting Tabs (v2 — 3 sub-tabs)
   // ========================
   renderAccountingTabs: function() {
-    // Tab 1: DS Thực tế
-    const thucTeTbody = document.querySelector('#table-acc-real tbody');
-    if (thucTeTbody) {
-      thucTeTbody.innerHTML = this.state.thucTeRows.map(r => `<tr>
-        <td>${r.stt}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher}</td><td class="number">${Utils.formatCurrency(r.hocPhi)}</td><td>${r.ghiChu || ''}</td>
-      </tr>`).join('');
-      const realCountEl = document.getElementById('acc-real-count');
-      if (realCountEl) realCountEl.textContent = `${this.state.thucTeRows.length} HS`;
-    }
+    // Tab 1: DS Hoá đơn Tháng trước (raw from prev invoice file)
+    this.renderPrevInvoiceTab();
 
-    // Tab 2: DS Ghi HĐ
+    // Tab 2: DS Hoá đơn tháng hiện tại (Groups A + B)
     this.renderInvoiceTableHD();
 
-    // Tab 3: Thay đổi HĐ
+    // Tab 3: Thay đổi (Tăng mới + Giảm bớt + CK sai tiền)
     this.renderInvoiceChanges();
 
-    // Tab 4: Thay đổi DS
-    this.renderThucTeChanges();
-
-    // Month label
-    const monthLabel = document.getElementById('invoice-month-label');
-    if (monthLabel) {
-      const my = this.state.monthYear || '';
-      monthLabel.textContent = my ? my.split('-').reverse().join('.') : '...';
-    }
+    // Cross-check totals
+    this.renderCrossCheck();
   },
 
   renderInvoiceChanges: function() {
     const changes = this.state.invoiceChanges || { tangMoi: [], giamBot: [], saiTienCK: [] };
+
+    // Month label
+    const monthLabel = document.getElementById('changes-month-label');
+    if (monthLabel) {
+      const my = this.state.monthYear || '';
+      monthLabel.textContent = my ? my.split('-').reverse().join('.') : '...';
+    }
 
     // TĂNG MỚI
     const tangTbody = document.querySelector('#table-acc-tang tbody');
@@ -786,72 +752,119 @@ window.App = {
   },
 
   // ========================
-  // TAB 2: Thay đổi DS Thực tế
+  // TAB 1: DS Hoá đơn Tháng trước
   // ========================
-  renderThucTeChanges: function() {
-    const tc = this.state.thucTeChanges || { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [] };
-    const allChanges = [];
-    tc.moi.forEach(c => allChanges.push({ ...c, type: 'moi', typeLabel: '🆕 Cần thêm vào KT' }));
-    tc.nghiHoc.forEach(c => allChanges.push({ ...c, type: 'nghiHoc', typeLabel: '🚫 Không còn trong DS HS' }));
-    tc.doiLop.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.classNameNew || c.classNameOld, hocPhi: c.hocPhi, type: 'doiLop', typeLabel: '🔄 Đổi lớp', ghiChu: `${c.classNameOld} → ${c.classNameNew}` }));
-    tc.hpThayDoi.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.className, hocPhi: c.hocPhiNew, type: 'hpThayDoi', typeLabel: '💰 HP thay đổi', ghiChu: c.ghiChu }));
-    this._thucTeChangesAll = allChanges;
-    this._filterThucTeChanges('all');
-    const summaryEl = document.getElementById('thay-doi-summary');
-    if (summaryEl) summaryEl.textContent = allChanges.length > 0 ? `${allChanges.length} thay đổi` : 'Không có thay đổi';
+  renderPrevInvoiceTab: function() {
+    const prevStudents = this.state.prevInvoiceStudents || [];
+    const tbody = document.querySelector('#table-prev-invoice tbody');
+    if (tbody) {
+      tbody.innerHTML = prevStudents.length === 0
+        ? '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Chưa import file Kế toán tháng trước</td></tr>'
+        : prevStudents.map((s, idx) => `<tr>
+            <td>${idx + 1}</td><td>${s.mshs || ''}</td><td>${s.className || ''}</td><td>${s.fullName || ''}</td><td class="number">${Utils.formatCurrency(s.hocPhi || 0)}</td><td>${s.ghiChu || ''}</td>
+          </tr>`).join('');
+      const countEl = document.getElementById('prev-hd-count');
+      if (countEl) countEl.textContent = `${prevStudents.length} HS`;
+    }
+    // Month label
+    const monthLabel = document.getElementById('prev-month-label');
+    if (monthLabel) {
+      monthLabel.textContent = prevStudents.length > 0 ? 'đã import' : 'chưa có dữ liệu';
+    }
   },
 
-  _filterThucTeChanges: function(filter) {
-    const all = this._thucTeChangesAll || [];
-    const filtered = filter === 'all' ? all : all.filter(c => c.type === filter);
-    const tbody = document.querySelector('#table-thay-doi-real tbody');
-    if (!tbody) return;
-    tbody.innerHTML = filtered.length === 0
-      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Không có thay đổi</td></tr>'
-      : filtered.map(c => `<tr><td>${c.mshs}</td><td>${c.fullName}</td><td>${c.className}</td><td class="number">${Utils.formatCurrency(c.hocPhi || 0)}</td><td>${c.typeLabel}</td><td>${c.ghiChu || ''}</td></tr>`).join('');
-    const summaryEl = document.getElementById('thay-doi-summary');
-    if (summaryEl) summaryEl.textContent = filter === 'all' ? `${all.length} thay đổi` : `${filtered.length}/${all.length}`;
-  },
-
+  // ========================
+  // TAB 2: DS Hoá đơn tháng hiện tại (Groups A + B)
+  // ========================
   renderInvoiceTableHD: function() {
     const tbody = document.querySelector('#table-acc-invoice tbody');
     if (!tbody) return;
 
     const hdRows = this.state.ghiHDRows || [];
-    const selectedMSHS = this.state.selectedHDMSHS || new Set();
-
     let totalAmount = 0;
-    let selectedCount = 0;
 
     tbody.innerHTML = hdRows.map((r, idx) => {
-      const isSelected = selectedMSHS.has(r.mshs);
-      const isTangMoi = r.mandatory || false;
-      const isBoSung = r.boSung || false;
-
-      let tag = '';
-      if (isTangMoi) tag = ' <span class="badge success" style="font-size:10px">📈 Tăng mới</span>';
-      if (isBoSung) tag = ' <span class="badge info" style="font-size:10px">📋 Bổ sung bởi Kế toán</span>';
-
-      if (isSelected) {
-        totalAmount += (Number(r.hocPhi) || 0);
-        selectedCount++;
-      }
+      const tag = r.tag ? ` <span class="badge ${r.group === 'B' ? 'success' : 'info'}" style="font-size:10px">${r.tag}</span>` : '';
+      totalAmount += (Number(r.hocPhi) || 0);
 
       return `<tr>
-        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher}</td>
+        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher || ''}</td>
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td>${r.ghiChu || ''}${tag}</td>
+        <td>${r.source || ''}${tag}</td>
       </tr>`;
     }).join('');
 
     const countEl = document.getElementById('acc-invoice-count');
-    if (countEl) countEl.textContent = `${selectedCount} HS`;
-    const currCountEl = document.getElementById('curr-month-count');
-    if (currCountEl) currCountEl.textContent = selectedCount;
-    const prevCountEl = document.getElementById('prev-month-count');
-    if (prevCountEl) prevCountEl.textContent = (this.state.prevInvoiceStudents || []).length;
+    if (countEl) countEl.textContent = `${hdRows.length} HS`;
     const totalEl = document.getElementById('total-amount');
     if (totalEl) totalEl.textContent = Utils.formatCurrency(totalAmount);
+
+    // Prev count
+    const prevCountEl = document.getElementById('prev-month-count');
+    if (prevCountEl) prevCountEl.textContent = (this.state.prevInvoiceStudents || []).length;
+
+    // Month label
+    const monthLabel = document.getElementById('invoice-month-label');
+    if (monthLabel) {
+      const my = this.state.monthYear || '';
+      monthLabel.textContent = my ? my.split('-').reverse().join('.') : '...';
+    }
+  },
+
+  // ========================
+  // Cross-check: đối chiếu tổng tiền
+  // ========================
+  renderCrossCheck: function() {
+    const cls = this.state.invoiceClassification;
+    if (!cls) return;
+
+    const tongKyVong = cls.tongKyVong || 0;
+    const changes = cls.tab3Changes || {};
+    const saiTienCount = (changes.saiTienCK || []).length;
+
+    // Total VTB received
+    let tongCKThucNhan = 0;
+    const vtbMatchedMSHS = new Set(this.state.vtbMatched.map(t => t.matchedMSHS).filter(Boolean));
+    for (const r of (cls.tab2Rows || [])) {
+      if (vtbMatchedMSHS.has(r.mshs)) {
+        // Sum from vtbMatched
+        this.state.vtbMatched.forEach(t => {
+          if (t.matchedMSHS === r.mshs) tongCKThucNhan += (Number(t.credit) || 0);
+        });
+      }
+    }
+
+    // Deduplicated: calculate once from VTB matched transactions for Group A+B students
+    const tab2MSHS = new Set((cls.tab2Rows || []).map(r => r.mshs));
+    tongCKThucNhan = 0;
+    for (const t of (this.state.vtbMatched || [])) {
+      if (tab2MSHS.has(t.matchedMSHS)) {
+        tongCKThucNhan += (Number(t.credit) || 0);
+      }
+    }
+
+    // Sum of sai tien
+    let tongSaiTien = 0;
+    for (const s of (changes.saiTienCK || [])) {
+      tongSaiTien += s.chenhLech || 0;
+    }
+
+    const chenhLech = tongCKThucNhan - tongKyVong;
+    const uocLuongToiThieu = Math.floor(tongCKThucNhan / (APP_CONFIG.DEFAULT_HOC_PHI || 800000));
+
+    const el = document.getElementById('cross-check-info');
+    if (el) {
+      el.innerHTML = `
+        <div class="flex gap-4 flex-wrap text-sm" style="padding: 12px 0;">
+          <span>💰 Tổng CK TK Công ty: <b>${Utils.formatCurrency(tongCKThucNhan)}</b></span>
+          <span>📊 Tổng HP kỳ vọng (A+B): <b>${Utils.formatCurrency(tongKyVong)}</b></span>
+          <span>⚡ Chênh lệch: <b style="color:${chenhLech !== 0 ? 'var(--color-danger)' : 'var(--color-success)'}">${Utils.formatCurrency(chenhLech)}</b></span>
+          ${saiTienCount > 0 ? `<span>⚠️ Sai tiền: <b>${saiTienCount} HS</b> (tổng chênh: ${Utils.formatCurrency(tongSaiTien)})</span>` : ''}
+          <span style="color:var(--text-secondary)">📐 Ước lượng tối thiểu: <b>${uocLuongToiThieu}</b> HS</span>
+        </div>
+        ${chenhLech !== 0 && saiTienCount === 0 ? '<p style="color:var(--color-warning);font-size:0.8rem">⚠️ Có chênh lệch nhưng không phát hiện HS sai tiền → có giao dịch lạ chưa ghi nhận. Cần rà tay.</p>' : ''}
+      `;
+    }
   },
 
   getChangeTypeInfo: function(type) {
@@ -1159,15 +1172,11 @@ window.App = {
   },
 
   // ========================
-  // ACTIONS: Invoice selection
+  // ACTIONS: Invoice selection (v2 — all Tab 2 rows auto-selected)
   // ========================
   toggleInvoiceItem: function(mshs, checked) {
-    if (checked) {
-      this.state.selectedHDMSHS.add(mshs);
-    } else {
-      this.state.selectedHDMSHS.delete(mshs);
-    }
-    document.getElementById('invoice-selected-count').textContent = this.state.selectedHDMSHS.size;
+    // No-op in v2: all Group A+B students are automatically included
+    // Kept for backward compatibility with any legacy UI references
   },
 
 
@@ -1198,8 +1207,8 @@ window.App = {
   exportAccounting: function() {
     if (!this.state.thucTeRows.length) { Utils.showToast('Chưa có dữ liệu kế toán', 'error'); return; }
     const monthYear = document.getElementById('month-selector')?.value || '';
-    const ghiHDSelected = this.state.ghiHDRows.filter(r => this.state.selectedHDMSHS.has(r.mshs));
-    Exporter.exportKeToan(this.state.thucTeRows, ghiHDSelected, this.state.invoiceChanges, monthYear);
+    // v2: all ghiHDRows (Groups A+B) are included
+    Exporter.exportKeToan(this.state.thucTeRows, this.state.ghiHDRows, this.state.invoiceChanges, monthYear);
     Utils.showToast('Đã xuất file báo cáo kế toán', 'success');
   },
 
@@ -1216,8 +1225,8 @@ window.App = {
       month: monthYear,
       savedDate: new Date().toISOString()
     });
-    // Save HD list
-    Storage.savePrevMonthHD([...this.state.selectedHDMSHS]);
+    // Save HD list — v2: save all Tab 2 MSHS (Groups A+B)
+    Storage.savePrevMonthHD(this.state.ghiHDRows.map(r => r.mshs));
     
     // Auto-archive
     if (this.state.matchingDone) {
@@ -1225,7 +1234,7 @@ window.App = {
         students: this.state.students,
         reportRows: this.state.reportRows,
         thucTeRows: this.state.thucTeRows,
-        selectedHDMSHS: [...this.state.selectedHDMSHS],
+        ghiHDMSHS: this.state.ghiHDRows.map(r => r.mshs),
         changeRecords: this.state.changeRecords,
         stkPhu: Storage.loadSTKPhu(),
         keywords: Storage.loadKeywords()

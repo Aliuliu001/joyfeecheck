@@ -336,64 +336,66 @@
     </section>
 
 
-    <!-- TAB 4: Báo cáo Kế toán -->
+    <!-- TAB 4: Báo cáo Kế toán (v2 — 3 sub-tabs) -->
     <section id="accounting-tab" class="tab-content">
       <h2>📊 Báo cáo Kế toán</h2>
       
       <div class="sub-tab-bar">
-        <button class="sub-tab-btn active" data-subtab="acc-real">DS Thực tế</button>
-        <button class="sub-tab-btn" data-subtab="acc-invoice">DS Ghi HĐ</button>
-        <button class="sub-tab-btn" data-subtab="acc-changes-hd">Thay đổi HĐ</button>
-        <button class="sub-tab-btn" data-subtab="acc-changes-real">Thay đổi DS</button>
+        <button class="sub-tab-btn active" data-subtab="acc-prev-invoice">DS HĐ Tháng trước</button>
+        <button class="sub-tab-btn" data-subtab="acc-invoice">DS HĐ Tháng hiện tại</button>
+        <button class="sub-tab-btn" data-subtab="acc-changes-hd">Thay đổi</button>
       </div>
 
-      <!-- TAB 1: DS Thực tế -->
-      <div id="acc-real" class="sub-tab-content active mt-4">
+      <!-- SUB-TAB 1: DS Hoá đơn Tháng trước -->
+      <div id="acc-prev-invoice" class="sub-tab-content active mt-4">
         <div class="card glass-card">
           <div class="flex-between mb-3">
-            <h3>📋 DS Master Tổng — Tháng 08.2026</h3>
-            <span class="badge" id="acc-real-count">0 HS</span>
+            <h3>📋 DS Hoá đơn Tháng trước <span id="prev-month-label" class="text-sm text-secondary"></span></h3>
+            <span class="badge" id="prev-hd-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">DS Học sinh tổng (import đầu tiên). Danh sách master, nguồn gốc dữ liệu.</p>
+          <p class="text-sm text-secondary mb-3">Danh sách Ghi HĐ từ file Kế toán tháng trước (sheet "Danh sách viết HĐ").</p>
           <div class="table-container">
-            <table id="table-acc-real">
-              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th><th>Ghi chú</th></tr></thead>
+            <table id="table-prev-invoice">
+              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>Học phí</th><th>Ghi chú</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- TAB 2: DS Ghi HĐ -->
+      <!-- SUB-TAB 2: DS Hoá đơn tháng hiện tại -->
       <div id="acc-invoice" class="sub-tab-content mt-4">
         <div class="card glass-card">
           <div class="flex-between mb-3">
-            <h3>📝 Danh sách Phải Ghi HĐ Tháng <span id="invoice-month-label"></span></h3>
+            <h3>📝 DS Hoá đơn Tháng <span id="invoice-month-label"></span></h3>
             <span class="badge" id="acc-invoice-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS CK vào TK Công ty (bắt buộc) + HS Kế toán bổ sung thủ công.</p>
+          <p class="text-sm text-secondary mb-3">
+            Nhóm A: Có DS HĐ tháng trước + Còn trong DS Tổng | Nhóm B: Mới CK VTB tháng này
+          </p>
           <div class="flex gap-3 mb-3 text-sm">
             <span>📊 Tháng trước: <b id="prev-month-count">0</b> HS</span>
-            <span>→ Tháng này: <b id="curr-month-count">0</b> HS</span>
-            <span>| Tổng tiền: <b id="total-amount">0đ</b></span>
+            <span>| Tổng HP: <b id="total-amount">0đ</b></span>
           </div>
+          <div id="cross-check-info"></div>
           <div class="table-container">
             <table id="table-acc-invoice">
-              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th><th>Ghi chú</th></tr></thead>
+              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th><th>Nguồn / Ghi chú</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- TAB 3: Thay đổi HĐ -->
+      <!-- SUB-TAB 3: Thay đổi -->
       <div id="acc-changes-hd" class="sub-tab-content mt-4">
+        <h3 class="mb-3">Thay đổi DS Ghi HĐ Tháng <span id="changes-month-label" class="text-sm text-secondary"></span></h3>
         <div class="card glass-card mb-4">
           <div class="flex-between mb-3">
             <h3>📈 TĂNG MỚI</h3>
             <span class="badge success" id="acc-tang-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS tháng trước KHÔNG có DS Ghi HĐ, tháng này CÓ (mới CK VTB).</p>
+          <p class="text-sm text-secondary mb-3">HS chưa có DS HĐ tháng trước, tháng này mới CK VTB.</p>
           <div class="table-container">
             <table id="table-acc-tang">
               <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th></tr></thead>
@@ -406,10 +408,10 @@
             <h3>📉 GIẢM BỚT</h3>
             <span class="badge error" id="acc-giam-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS tháng trước CÓ DS Ghi HĐ, tháng này KHÔNG còn.</p>
+          <p class="text-sm text-secondary mb-3">HS có DS HĐ tháng trước nhưng tháng này KHÔNG còn trong DS HĐ.</p>
           <div class="table-container">
             <table id="table-acc-giam">
-              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí tháng TRC</th><th>Lý do</th></tr></thead>
+              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -419,38 +421,10 @@
             <h3>⚠️ CK SAI TIỀN</h3>
             <span class="badge warning" id="acc-sai-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS CK VTB sai HP quy định. Cần kiểm tra lại.</p>
+          <p class="text-sm text-secondary mb-3">HS CK VTB tháng này nhưng số tiền ≠ HP thực tế.</p>
           <div class="table-container">
             <table id="table-acc-sai">
-              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP quy định</th><th>Đã CK</th><th>Chênh lệch</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 4: Thay đổi DS -->
-      <div id="acc-changes-real" class="sub-tab-content mt-4">
-        <div class="card glass-card mb-3">
-          <div class="flex-between">
-            <h3>🔄 Thay đổi DS Tổng</h3>
-          </div>
-          <p class="text-sm text-secondary">So sánh: DS HS tổng (import mới nhất) vs DS Thực tế tháng TRƯỚC (trong file Kế toán).</p>
-          <div class="flex gap-2 mt-3 mb-3">
-            <select id="filter-thay-doi" class="form-select" style="max-width:200px">
-              <option value="all">📋 Tất cả</option>
-              <option value="moi">🆕 Cần thêm vào KT</option>
-              <option value="nghiHoc">🚫 Không còn trong DS HS</option>
-              <option value="doiLop">🔄 Đổi lớp</option>
-              <option value="hpThayDoi">💰 HP thay đổi</option>
-            </select>
-            <span class="text-sm" style="line-height:36px; color:var(--text-secondary)" id="thay-doi-summary"></span>
-          </div>
-        </div>
-        <div class="card glass-card">
-          <div class="table-container">
-            <table id="table-thay-doi-real">
-              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP</th><th>Thay đổi</th><th>Ghi chú</th></tr></thead>
+              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP thực tế</th><th>Đã CK</th><th>Chênh lệch</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
