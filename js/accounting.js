@@ -41,12 +41,29 @@ window.Accounting = {
     const rows = [];
 
     for (const s of studentsThucTe) {
-      let isMandatory = vtbMatchedMSHS.has(s.mshs);
-      let isSelected = false;
+      const isVTB = vtbMatchedMSHS.has(s.mshs);
+      const wasInPrevMonth = prevMonthHDList.includes(s.mshs);
 
-      if (prevMonthHDList.includes(s.mshs) || isMandatory) {
+      // Logic DS Ghi HĐ tháng này:
+      // DS Ghi HĐ tháng trước (base) + thay đổi dựa trên CK VTB tháng này
+      //
+      // 1. Thang TRUOC co trong DS Ghi HD + thang NAY co CK VTB → ✅ Giu nguyen
+      // 2. Thang TRUOC co trong DS Ghi HD + thang NAY KHONG CK VTB → ❌ Loai bo
+      // 3. Thang TRUOC KHONG co + thang NAY co CK VTB → ✅ Them moi
+      // 4. Thang TRUOC KHONG co + thang NAY KHONG CK VTB → ❌ Khong co
+
+      let isSelected = false;
+      if (wasInPrevMonth && isVTB) {
+        // 1. Giữ nguyên
+        isSelected = true;
+      } else if (wasInPrevMonth && !isVTB) {
+        // 2. Loại bỏ (không CK tháng này)
+        isSelected = false;
+      } else if (!wasInPrevMonth && isVTB) {
+        // 3. Thêm mới (CK mới tháng này)
         isSelected = true;
       }
+      // 4. Không có gì → không chọn
 
       if (isSelected) {
         selectedMSHS.add(s.mshs);
@@ -54,7 +71,8 @@ window.Accounting = {
 
       rows.push({
         ...s,
-        mandatory: isMandatory
+        mandatory: isVTB && !wasInPrevMonth, // Moi chi CK thang nay
+        wasInPrevMonth: wasInPrevMonth
       });
     }
 

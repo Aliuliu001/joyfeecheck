@@ -337,14 +337,31 @@ window.Importer = {
     try {
       const data = await this.readFileAsArrayBuffer(file);
       const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const dataMatrix = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
+      // Find "Danh sach viet HD" sheet (may be named differently)
+      let targetSheet = null;
+      for (const name of workbook.SheetNames) {
+        const normalizedName = Utils.normalizeText(name);
+        if (normalizedName.includes('ghihd') || normalizedName.includes('ghideshow') || normalizedName.includes('viet hd') || normalizedName.includes('danh sach viet')) {
+          targetSheet = workbook.Sheets[name];
+          break;
+        }
+      }
+
+      // Fallback: if not found, use first sheet
+      if (!targetSheet) {
+        console.log('Không tìm thấy sheet "Danh sách viết HĐ", dùng sheet đầu tiên');
+        targetSheet = workbook.Sheets[workbook.SheetNames[0]];
+      }
+
+      const dataMatrix = XLSX.utils.sheet_to_json(targetSheet, { header: 1 });
+
+      // Find header row (skip company info rows at top)
       let headerRowIdx = 0;
       let maxMatches = 0;
       const expectedKeywords = ['mshs', 'họ tên', 'lớp', 'học phí', 'stt'];
-      
-      for (let i = 0; i < Math.min(10, dataMatrix.length); i++) {
+
+      for (let i = 0; i < Math.min(15, dataMatrix.length); i++) {
         const row = dataMatrix[i];
         if (!row || row.length === 0) continue;
         const rowStr = row.map(cell => Utils.normalizeText(cell || '')).join(' ');
@@ -382,7 +399,7 @@ window.Importer = {
         });
       }
 
-      console.log(`Đã parse DS Ghi HĐ tháng trước: ${students.length} HS`);
+      console.log(`Đã parse DS Ghi HĐ tháng trước: ${students.length} HS (từ sheet "${targetSheet ? 'Danh sách viết HĐ' : 'Sheet đầu tiên'}")`);
       return students;
     } catch (e) {
       console.error(e);

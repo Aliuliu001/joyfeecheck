@@ -908,6 +908,18 @@ window.App = {
     if (invoiceCountEl) invoiceCountEl.textContent = `${this.state.selectedHDMSHS.size}/${this.state.ghiHDRows.length} HS`;
     const currMonthCountEl = document.getElementById('curr-month-count');
     if (currMonthCountEl) currMonthCountEl.textContent = this.state.selectedHDMSHS.size;
+
+    // Total amount
+    const totalAmountEl = document.getElementById('total-amount');
+    if (totalAmountEl) {
+      let totalAmount = 0;
+      this.state.ghiHDRows.forEach(r => {
+        if (this.state.selectedHDMSHS.has(r.mshs)) {
+          totalAmount += (Number(r.hocPhi) || 0);
+        }
+      });
+      totalAmountEl.textContent = Utils.formatCurrency(totalAmount);
+    }
   },
 
   getChangeTypeInfo: function(type) {
