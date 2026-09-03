@@ -987,11 +987,14 @@ window.App = {
     // Get prev invoice students (from file import "File Kế toán tháng trước")
     const prevInvoiceStudents = this.state.prevInvoiceStudents || Storage._get('joy_prev_invoice_students', []);
     
-    // Get VTB matched MSHS this month (unique set)
+    // Get VTB matched MSHS this month (unique set) + aggregate amounts
     const vtbMatchedMSHS = new Set();
+    const vtbAmountByMSHS = new Map();
     for (const tx of (this.state.vtbMatched || [])) {
       if (tx.matchedMSHS) {
-        vtbMatchedMSHS.add(tx.matchedMSHS.toUpperCase());
+        const mshs = tx.matchedMSHS.toUpperCase();
+        vtbMatchedMSHS.add(mshs);
+        vtbAmountByMSHS.set(mshs, (vtbAmountByMSHS.get(mshs) || 0) + (tx.credit || 0));
       }
     }
     
@@ -1001,9 +1004,9 @@ window.App = {
       if (s.mshs) currMap.set(s.mshs, s);
     }
     
-    // Compute the 5-tab comparison
+    // Compute the 6-tab comparison
     this.state.accountingData = Accounting.computeInvoiceComparison(
-      prevInvoiceStudents, vtbMatchedMSHS, currMap
+      prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS
     );
   },
 
@@ -1027,6 +1030,7 @@ window.App = {
     setCount('acc-count-tab3', data.tab3.length);
     setCount('acc-count-tab4', data.tab4.length);
     setCount('acc-count-tab5', data.tab5.length);
+    setCount('acc-count-tab6', (data.tab6 || []).length);
     
     // Render Tab 1: DS HĐ Tháng trước
     this._renderAccTable('table-acc-tab1', data.tab1, (r, idx) => `
@@ -1083,13 +1087,26 @@ window.App = {
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
       </tr>
     `);
+    
+    // Render Tab 6: Chuyển tiền sai
+    this._renderAccTable('table-acc-tab6', data.tab6 || [], (r, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+        <td class="number" style="color: var(--accent-blue); font-weight:600;">${Utils.formatCurrency(r.ckAmount)}</td>
+        <td class="number" style="color: ${r.chenhLech < 0 ? 'var(--danger-color)' : 'var(--accent-yellow)'}; font-weight:600;">${r.lyDo || ''}</td>
+      </tr>
+    `);
   },
   
   _renderAccTable: function(tableId, rows, rowRenderer) {
     const tbody = document.querySelector(`#${tableId} tbody`);
     if (!tbody) return;
     if (!rows || rows.length === 0) {
-      const colCount = tableId === 'table-acc-tab4' ? 6 : 5;
+      const colCount = tableId === 'table-acc-tab6' ? 7 : (tableId === 'table-acc-tab4' ? 6 : 5);
       tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:20px; color:var(--text-secondary)">Không có dữ liệu</td></tr>`;
       return;
     }
@@ -1130,6 +1147,32 @@ window.App = {
     const monthYear = document.getElementById('month-selector')?.value || '';
     Exporter.exportBaoCaoKeToan(data, monthYear);
     Utils.showToast('Đã xuất file Báo cáo Kế toán', 'success');
+  },
+
+  // Export single accounting sub-tab
+  exportAccTab: function(tabNum) {
+    const data = this.state.accountingData;
+    if (!data) {
+      Utils.showToast('Chưa có dữ liệu kế toán. Hãy chạy đối soát trước.', 'error');
+      return;
+    }
+    const monthYear = document.getElementById('month-selector')?.value || '';
+    const tabNames = {
+      1: 'DS HĐ Tháng trước',
+      2: 'DS CK VTB Tháng này',
+      3: 'Giảm bớt',
+      4: 'Stop học nghỉ',
+      5: 'Tăng mới',
+      6: 'Chuyển tiền sai'
+    };
+    const tabKey = 'tab' + tabNum;
+    const rows = data[tabKey] || [];
+    if (rows.length === 0) {
+      Utils.showToast('Tab này không có dữ liệu để xuất', 'info');
+      return;
+    }
+    Exporter.exportAccTabSingle(tabNum, rows, tabNames[tabNum] || `Tab ${tabNum}`, monthYear);
+    Utils.showToast(`Đã xuất Excel: ${tabNames[tabNum]} (${rows.length} HS)`, 'success');
   },
 
   // ========================

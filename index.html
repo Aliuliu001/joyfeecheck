@@ -345,6 +345,7 @@
         <button class="sub-tab-btn" data-subtab="acc-tab3">📉 Giảm bớt</button>
         <button class="sub-tab-btn" data-subtab="acc-tab4">🛑 Stop học nghỉ</button>
         <button class="sub-tab-btn" data-subtab="acc-tab5">📈 Tăng mới</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab6">⚠️ Chuyển tiền sai</button>
       </div>
 
       <!-- Summary cards -->
@@ -384,6 +385,13 @@
             <span class="card-value" id="acc-count-tab5">0</span>
           </div>
         </div>
+        <div class="summary-card card" style="background: linear-gradient(135deg, #f85149 0%, #d29922 100%);">
+          <div class="card-icon">⚠️</div>
+          <div class="card-info">
+            <span class="card-label">CK sai tiền</span>
+            <span class="card-value" id="acc-count-tab6">0</span>
+          </div>
+        </div>
       </div>
 
       <!-- Sub-tab 1: DS HĐ Tháng trước -->
@@ -404,6 +412,9 @@
               </thead>
               <tbody></tbody>
             </table>
+          </div>
+          <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(1)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
       </div>
@@ -427,6 +438,9 @@
               <tbody></tbody>
             </table>
           </div>
+          <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(2)">📥 Xuất Excel Tab này</button>
+          </div>
         </div>
       </div>
 
@@ -448,6 +462,9 @@
               </thead>
               <tbody></tbody>
             </table>
+          </div>
+          <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(3)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
       </div>
@@ -472,6 +489,9 @@
               <tbody></tbody>
             </table>
           </div>
+          <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(4)">📥 Xuất Excel Tab này</button>
+          </div>
         </div>
       </div>
 
@@ -494,13 +514,43 @@
               <tbody></tbody>
             </table>
           </div>
+          <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(5)">📥 Xuất Excel Tab này</button>
+          </div>
         </div>
       </div>
 
-      <!-- Export button -->
+      <!-- Sub-tab 6: Chuyển tiền sai -->
+      <div id="acc-tab6" class="sub-tab-content">
+        <div class="card glass-card mt-4">
+          <h3>⚠️ Chuyển tiền sai — CK VTB sai số tiền HP</h3>
+          <p class="text-sm text-secondary mb-2">Học sinh CK vào TK Công ty VietinBank nhưng số tiền KHÁC với học phí quy định.</p>
+          <div class="table-container">
+            <table id="table-acc-tab6">
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>MSHS</th>
+                  <th>Họ tên</th>
+                  <th>Lớp</th>
+                  <th>HP quy định</th>
+                  <th>Số tiền CK</th>
+                  <th>Chênh lệch</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(6)">📥 Xuất Excel Tab này</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export all button -->
       <div class="action-panel mt-4" style="flex-direction: row; justify-content: center; gap: 8px; flex-wrap: wrap;">
         <button id="btn-export-accounting" class="btn btn-primary">
-          📥 Xuất Báo cáo Kế toán (Excel)
+          📥 Xuất tất cả (6 tabs)
         </button>
       </div>
     </section>
@@ -756,7 +806,9 @@
             <li><strong>Tab 3 — Giảm bớt:</strong> Tháng trước có, tháng này chưa CK → cần nhắc/nhắc nợ. Vẫn trong DS Tổng.</li>
             <li><strong>Tab 4 — Stop học nghỉ:</strong> Trong Tab 3 mà KHÔNG còn trong DS Tổng hoặc HP=0 → đã nghỉ thật sự.</li>
             <li><strong>Tab 5 — Tăng mới:</strong> HS mới CK VTB tháng này mà tháng trước chưa có.</li>
-            <li>Bấm <strong>"Xuất Báo cáo Kế toán (Excel)"</strong> để tải file 5 sheet.</li>
+            <li><strong>Tab 6 — Chuyển tiền sai:</strong> HS CK VTB nhưng số tiền ≠ HP quy định.</li>
+            <li>Mỗi tab có nút <strong>"📥 Xuất Excel Tab này"</strong> — chỉ xuất dữ liệu tab đang xem.</li>
+            <li>Nút <strong>"📥 Xuất tất cả (6 tabs)"</strong> — xuất file Excel 6 sheet.</li>
           </ul>
         </div>
 

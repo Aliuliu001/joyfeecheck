@@ -220,7 +220,58 @@ window.Exporter = {
   },
 
   /**
-   * Export accounting report (5-tab comparison)
+   * Export a single accounting sub-tab as Excel
+   */
+  exportAccTabSingle: function(tabNum, rows, tabTitle, monthYear) {
+    const wb = XLSX.utils.book_new();
+    const monthLabel = (monthYear || '').includes('-')
+      ? monthYear.split('-').reverse().join('.')
+      : (monthYear || '');
+
+    const isTab6 = tabNum === 6;
+    const isTab4 = tabNum === 4;
+    const headers = isTab6
+      ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'HP quy định', 'Số tiền CK', 'Chênh lệch']
+      : isTab4
+        ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do']
+        : ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
+
+    const aoa = [
+      [APP_CONFIG.COMPANY_NAME],
+      [`BÁO CÁO KẾ TOÁN — ${tabTitle} — Tháng ${monthLabel}`],
+      [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
+      [],
+      headers
+    ];
+
+    let totalHP = 0;
+    rows.forEach((r, idx) => {
+      const row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
+      if (isTab6) {
+        row.push(r.ckAmount || 0, r.lyDo || '');
+      } else if (isTab4) {
+        row.push(r.lyDo || '');
+      }
+      aoa.push(row);
+      totalHP += (r.hocPhi || 0);
+    });
+
+    const totalRow = ['', '', '', 'TỔNG CỘNG', totalHP];
+    if (isTab6) totalRow.push('', '');
+    else if (isTab4) totalRow.push('');
+    aoa.push(totalRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    this.autoFitColumns(ws, null, headers);
+    XLSX.utils.book_append_sheet(wb, ws, tabTitle.substring(0, 31));
+
+    const safeTitle = tabTitle.replace(/[^a-zA-Z0-9\u00C0-\u024F]/g, '_');
+    const filename = `KeToan_${safeTitle}_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
+    this.triggerDownload(wb, filename);
+  },
+
+  /**
+   * Export accounting report (6-tab comparison)
    */
   exportBaoCaoKeToan: function(data, monthYear) {
     const wb = XLSX.utils.book_new();
@@ -283,7 +334,25 @@ window.Exporter = {
       createSheet(buildAoA('Tăng mới', data.tab5), headers5),
       '5_Tăng_mới');
 
-    const filename = `BaoCaoKeToan_5Tabs_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
+    // Sheet 6: Chuyển tiền sai (with extra columns)
+    if (data.tab6 && data.tab6.length > 0) {
+      const hdrs6 = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'HP quy định', 'Số tiền CK', 'Chênh lệch'];
+      const aoa6 = [
+        [APP_CONFIG.COMPANY_NAME],
+        [`BÁO CÁO KẾ TOÁN - Chuyển tiền sai - Tháng ${monthLabel}`],
+        [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
+        [],
+        hdrs6
+      ];
+      data.tab6.forEach((r, idx) => {
+        aoa6.push([idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0, r.ckAmount || 0, r.lyDo || '']);
+      });
+      XLSX.utils.book_append_sheet(wb,
+        createSheet(aoa6, hdrs6),
+        '6_Chuyển_tiền_sai');
+    }
+
+    const filename = `BaoCaoKeToan_6Tabs_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
   },
 
