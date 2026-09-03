@@ -66,8 +66,8 @@ window.Accounting = {
       const student = currMap.get(mshs);
       const hp = student ? (Number(student.hocPhi) || 0) : 0;
 
-      if (inPrev && inMaster) {
-        // GROUP A
+      if (inPrev && inMaster && hp > 0) {
+        // GROUP A: in prev invoice + still in master + HP > 0 (actively studying)
         classificationMap.set(mshs, 'A');
         groupA.add(mshs);
         tab2Rows.push({
