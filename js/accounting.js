@@ -1,6 +1,12 @@
 /**
- * JOY FEE CHECK - Accounting Module (v2 — UNION-based invoice classification)
- * Single shared function classifyInvoiceStudents() drives both Tab 2 and Tab 3.
+ * JOY FEE CHECK - Accounting Module (v3 — simple set operations)
+ * 
+ * 5 Tabs based on simple set differences:
+ * Tab 1: DS HĐ Tháng trước (raw from prev invoice file)
+ * Tab 2: DS CK VTB Tháng này (only students who CK to company VietinBank)
+ * Tab 3: Tháng trước có, tháng này chưa CK (Tab1 - Tab2)
+ * Tab 4: Giảm bớt (Tab3 students NOT in DS Tổng master)
+ * Tab 5: Tăng mới (Tab2 - Tab1, new VTB transfers)
  */
 window.Accounting = {
   generateThucTe(students) {
@@ -20,164 +26,104 @@ window.Accounting = {
   },
 
   /**
-   * UNION-based invoice classification.
-   * Source = UNION(DS_Tong_ThangNay, DS_HD_ThangTruoc)
-   * Each MSHS is classified into exactly one group (priority A > B > C > skip).
-   *
-   * Group A: in prevInvoice AND in currentMaster → present Tab 2, no tag (or "Giữ nguyên")
-   * Group B: NOT in prevInvoice AND has VTB CK this month → present Tab 2, tag "📈 Tăng mới"
-   * Group C: in prevInvoice AND NOT in DS_HD_ThangNay (A∪B) → Tab 3 "📉 Giảm bớt"
-   * Skip: everything else → no Tab 2, no Tab 3
-   *
-   * @param {Array} studentsMaster - DS_Tong_ThangNay (students from import #1)
-   * @param {Array} prevInvoiceStudents - DS_HD_ThangTruoc (from prev invoice file)
-   * @param {Set} vtbMatchedMSHS - MSHS that CK to VTB company account this month
-   * @param {Map} currMap - MSHS → student object
-   * @param {Set} freeTuitionSet - MSHS with HP=0
-   * @param {Object} vtbAmountByMSHS - MSHS → total VTB amount
-   * @returns {Object} { tab2Rows, tab3Changes, classificationMap, tongKyVong, tongCKSai }
+   * Simple set-based invoice comparison.
+   * 
+   * @param {Array} prevInvoiceStudents - Tab 1 data (MSHS strings or objects)
+   * @param {Set} vtbMatchedMSHS - MSHS that CK to VTB company account this month (Tab 2 data)
+   * @param {Map} currMap - MSHS → student object (from DS Tổng master)
+   * @returns {Object} { tab1, tab2, tab3, tab4, tab5, tongCKSai }
    */
-  classifyInvoiceStudents(studentsMaster, prevInvoiceStudents, vtbMatchedMSHS, currMap, freeTuitionSet, vtbAmountByMSHS) {
-    const dsTongSet = new Set((studentsMaster || []).map(s => s.mshs));
+  computeInvoiceComparison(prevInvoiceStudents, vtbMatchedMSHS, currMap) {
+    // Helper: normalize prevInvoiceStudents to array of MSHS strings
+    const prevMSHS = (prevInvoiceStudents || []).map(s => typeof s === 'string' ? s : s.mshs).filter(Boolean);
+    const prevSet = new Set(prevMSHS);
+    const tab2Set = vtbMatchedMSHS || new Set();
+    const masterSet = new Set((currMap || new Map()).keys());
 
-    // prevInvoiceStudents can be: array of strings (MSHS) OR array of objects ({mshs, fullName, ...})
-    const prevHDSet = new Set((prevInvoiceStudents || []).map(s => typeof s === 'string' ? s : s.mshs));
-    // Also build a map for looking up prev student data
-    const prevHDMap = new Map();
+    // Build prev student data map for display
+    const prevDataMap = new Map();
     for (const s of (prevInvoiceStudents || [])) {
       const mshs = typeof s === 'string' ? s : s.mshs;
-      if (mshs) prevHDMap.set(mshs, typeof s === 'string' ? { mshs, fullName: mshs, hocPhi: 0 } : s);
+      if (mshs) prevDataMap.set(mshs, typeof s === 'string' ? { mshs, fullName: mshs, hocPhi: 0, className: '' } : s);
     }
 
-    // UNION of all MSHS we need to consider
-    const allMSHS = new Set();
-    for (const s of (studentsMaster || [])) allMSHS.add(s.mshs);
-    for (const s of (prevInvoiceStudents || [])) allMSHS.add(s.mshs);
-
-    const tab2Rows = [];       // Groups A + B
-    const groupA = new Set();  // MSHS in Group A
-    const groupB = new Set();  // MSHS in Group B
-    const classificationMap = new Map(); // mshs → 'A' | 'B' | 'C' | 'skip'
-
-    for (const mshs of allMSHS) {
-      const inPrev = prevHDSet.has(mshs);
-      const inMaster = dsTongSet.has(mshs);
-      const hasVTB = vtbMatchedMSHS.has(mshs);
-      const student = currMap.get(mshs);
-      const hp = student ? (Number(student.hocPhi) || 0) : 0;
-
-      if (inPrev && inMaster && hp > 0) {
-        // GROUP A: in prev invoice + still in master + HP > 0 (actively studying)
-        classificationMap.set(mshs, 'A');
-        groupA.add(mshs);
-        tab2Rows.push({
-          mshs,
-          fullName: student ? student.fullName : mshs,
-          className: student ? student.className : '',
-          teacher: student ? student.teacher : '',
-          hocPhi: hp,
-          group: 'A',
-          tag: '',
-          source: hasVTB ? '💳 CK VTB' : (student ? (student.ghiChu || '') : ''),
-          ghiChu: ''
-        });
-      } else if (!inPrev && hasVTB) {
-        // GROUP B
-        classificationMap.set(mshs, 'B');
-        groupB.add(mshs);
-        tab2Rows.push({
-          mshs,
-          fullName: student ? student.fullName : mshs,
-          className: student ? student.className : '',
-          teacher: student ? student.teacher : '',
-          hocPhi: hp,
-          group: 'B',
-          tag: '📈 Tăng mới',
-          source: '💳 CK VTB tháng này',
-          ghiChu: 'Mới CK vào TK Công ty'
-        });
-      } else if (inPrev && !groupA.has(mshs) && !groupB.has(mshs)) {
-        // GROUP C: in prev but NOT in A∪B → giảm bớt
-        classificationMap.set(mshs, 'C');
-      } else {
-        classificationMap.set(mshs, 'skip');
-      }
-    }
-
-    // Sort Tab 2: A first (by className), then B (by className)
-    tab2Rows.sort((a, b) => {
-      if (a.group !== b.group) return a.group === 'A' ? -1 : 1;
-      const c = (a.className || '').localeCompare(b.className || '');
-      return c !== 0 ? c : a.mshs.localeCompare(b.mshs);
+    // Tab 1: DS HĐ Tháng trước (all prev invoice students)
+    const tab1 = prevMSHS.map(mshs => {
+      const prevData = prevDataMap.get(mshs) || {};
+      const student = (currMap || new Map()).get(mshs);
+      return {
+        mshs,
+        fullName: student ? student.fullName : (prevData.fullName || mshs),
+        className: student ? student.className : (prevData.className || ''),
+        hocPhi: student ? (Number(student.hocPhi) || 0) : (prevData.hocPhi || 0),
+        teacher: student ? student.teacher : ''
+      };
     });
 
-    // Build Tab 3: Changes
-    const tab3Changes = this._buildTab3Changes(prevHDMap, tab2Rows, classificationMap, currMap, dsTongSet, freeTuitionSet, vtbMatchedMSHS, vtbAmountByMSHS);
-
-    // Cross-check totals
-    let tongKyVong = 0;
-    for (const r of tab2Rows) {
-      tongKyVong += (Number(r.hocPhi) || 0);
-    }
-
-    return { tab2Rows, tab3Changes, classificationMap, tongKyVong };
-  },
-
-  _buildTab3Changes(prevHDMap, tab2Rows, classificationMap, currMap, dsTongSet, freeTuitionSet, vtbMatchedMSHS, vtbAmountByMSHS) {
-    const changes = { tangMoi: [], giamBot: [], saiTienCK: [] };
-    const tab2MSHS = new Set(tab2Rows.map(r => r.mshs));
-
-    // 📈 Tăng mới: in DS_HD_ThangNay (tab2) but NOT in DS_HD_ThangTruoc
-    for (const r of tab2Rows) {
-      if (r.group === 'B') {
-        changes.tangMoi.push({
-          mshs: r.mshs, fullName: r.fullName, className: r.className,
-          hocPhi: r.hocPhi, lyDo: '💳 CK VTB tháng này'
-        });
-      }
-    }
-
-    // 📉 Giảm bớt: Group C — in prev but NOT in current DS_HD
-    for (const [mshs, group] of classificationMap.entries()) {
-      if (group !== 'C') continue;
-      const student = currMap.get(mshs) || prevHDMap.get(mshs) || null;
-      const inMaster = dsTongSet.has(mshs);
-      const hp = student ? (Number(student.hocPhi) || 0) : 0;
-
-      let lyDo;
-      if (!inMaster && hp === 0) {
-        lyDo = '🚫 Không còn trong DS Tổng + HP=0';
-      } else if (!inMaster) {
-        lyDo = '🚫 Không còn trong DS Tổng';
-      } else if (hp === 0) {
-        lyDo = '💰 HP = 0';
-      } else {
-        lyDo = '⚠️ Bất thường — cần rà tay';
-        console.warn(`[Accounting] Group C anomaly: ${mshs} still in DS Tổng AND HP=${hp}. Manual review needed.`);
-      }
-
-      changes.giamBot.push({
-        mshs, fullName: student ? student.fullName : mshs,
+    // Tab 2: DS CK VTB Tháng này (only VTB matched students)
+    const tab2 = [];
+    for (const mshs of tab2Set) {
+      const student = (currMap || new Map()).get(mshs);
+      tab2.push({
+        mshs,
+        fullName: student ? student.fullName : mshs,
         className: student ? student.className : '',
-        hocPhi: hp, lyDo
+        hocPhi: student ? (Number(student.hocPhi) || 0) : 0,
+        teacher: student ? student.teacher : ''
       });
     }
+    tab2.sort((a, b) => a.mshs.localeCompare(b.mshs));
 
-    // ⚠️ CK sai tiền: all students in Tab 2 who have VTB CK ≠ their HP
+    // Tab 3: Tháng trước có, tháng này chưa CK = Tab1 - Tab2
+    const tab3 = tab1.filter(r => !tab2Set.has(r.mshs));
+
+    // Tab 4: Giảm bớt = Tab3 students NOT in DS Tổng master OR HP=0
+    const tab4 = tab3.filter(r => {
+      const student = (currMap || new Map()).get(r.mshs);
+      if (!student) return true; // not in master at all
+      if ((Number(student.hocPhi) || 0) === 0) return true; // HP=0
+      return false;
+    }).map(r => {
+      const student = (currMap || new Map()).get(r.mshs);
+      let lyDo;
+      if (!student) {
+        lyDo = '🚫 Không còn trong DS Tổng';
+      } else if ((Number(student.hocPhi) || 0) === 0) {
+        lyDo = '💰 HP = 0';
+      } else {
+        lyDo = '⚠️ Cần rà tay';
+      }
+      return { ...r, lyDo };
+    });
+
+    // Tab 5: Tăng mới = Tab2 - Tab1 (new VTB transfers not in prev invoice)
+    const tab5 = tab2.filter(r => !prevSet.has(r.mshs));
+
+    // CK sai tiền: students in Tab2 with CK amount ≠ HP
+    const saiTienCK = [];
+    // Note: vtbAmountByMSHS needs to be passed in — but for now compute from tab2 + currMap
+    // We'll add this in the caller
+
+    return { tab1, tab2, tab3, tab4, tab5, prevSet, tab2Set };
+  },
+
+  /**
+   * Detect CK sai tiền (called separately with vtbAmountByMSHS)
+   */
+  detectSaiTienCK(tab2Rows, vtbAmountByMSHS, currMap) {
+    const changes = [];
     for (const r of tab2Rows) {
-      if (!vtbMatchedMSHS.has(r.mshs)) continue;
       const ckNop = (vtbAmountByMSHS && vtbAmountByMSHS[r.mshs]) || 0;
       const hp = Number(r.hocPhi) || 0;
-      if (hp > 0 && ckNop !== hp) {
+      if (hp > 0 && ckNop > 0 && ckNop !== hp) {
         const chenh = ckNop - hp;
-        changes.saiTienCK.push({
+        changes.push({
           mshs: r.mshs, fullName: r.fullName, className: r.className,
           hocPhi: hp, ckNop, chenhLech: chenh,
           lyDo: chenh < 0 ? `Thiếu ${Utils.formatCurrency(-chenh)}` : `Dư ${Utils.formatCurrency(chenh)}`
         });
       }
     }
-
     return changes;
   },
 
