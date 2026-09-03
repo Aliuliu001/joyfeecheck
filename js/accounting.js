@@ -39,7 +39,15 @@ window.Accounting = {
    */
   classifyInvoiceStudents(studentsMaster, prevInvoiceStudents, vtbMatchedMSHS, currMap, freeTuitionSet, vtbAmountByMSHS) {
     const dsTongSet = new Set((studentsMaster || []).map(s => s.mshs));
-    const prevHDSet = new Set((prevInvoiceStudents || []).map(s => s.mshs));
+
+    // prevInvoiceStudents can be: array of strings (MSHS) OR array of objects ({mshs, fullName, ...})
+    const prevHDSet = new Set((prevInvoiceStudents || []).map(s => typeof s === 'string' ? s : s.mshs));
+    // Also build a map for looking up prev student data
+    const prevHDMap = new Map();
+    for (const s of (prevInvoiceStudents || [])) {
+      const mshs = typeof s === 'string' ? s : s.mshs;
+      if (mshs) prevHDMap.set(mshs, typeof s === 'string' ? { mshs, fullName: mshs, hocPhi: 0 } : s);
+    }
 
     // UNION of all MSHS we need to consider
     const allMSHS = new Set();
@@ -104,7 +112,7 @@ window.Accounting = {
     });
 
     // Build Tab 3: Changes
-    const tab3Changes = this._buildTab3Changes(prevInvoiceStudents, tab2Rows, classificationMap, currMap, dsTongSet, freeTuitionSet, vtbMatchedMSHS, vtbAmountByMSHS);
+    const tab3Changes = this._buildTab3Changes(prevHDMap, tab2Rows, classificationMap, currMap, dsTongSet, freeTuitionSet, vtbMatchedMSHS, vtbAmountByMSHS);
 
     // Cross-check totals
     let tongKyVong = 0;
@@ -115,7 +123,7 @@ window.Accounting = {
     return { tab2Rows, tab3Changes, classificationMap, tongKyVong };
   },
 
-  _buildTab3Changes(prevInvoiceStudents, tab2Rows, classificationMap, currMap, dsTongSet, freeTuitionSet, vtbMatchedMSHS, vtbAmountByMSHS) {
+  _buildTab3Changes(prevHDMap, tab2Rows, classificationMap, currMap, dsTongSet, freeTuitionSet, vtbMatchedMSHS, vtbAmountByMSHS) {
     const changes = { tangMoi: [], giamBot: [], saiTienCK: [] };
     const tab2MSHS = new Set(tab2Rows.map(r => r.mshs));
 
@@ -132,7 +140,7 @@ window.Accounting = {
     // 📉 Giảm bớt: Group C — in prev but NOT in current DS_HD
     for (const [mshs, group] of classificationMap.entries()) {
       if (group !== 'C') continue;
-      const student = currMap.get(mshs) || null;
+      const student = currMap.get(mshs) || prevHDMap.get(mshs) || null;
       const inMaster = dsTongSet.has(mshs);
       const hp = student ? (Number(student.hocPhi) || 0) : 0;
 
