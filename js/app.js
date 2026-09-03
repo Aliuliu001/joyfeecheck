@@ -21,6 +21,8 @@ window.App = {
     ghiHDRows: [],
     selectedHDMSHS: new Set(),
     changeRecords: [],
+    invoiceChanges: { tangMoi: [], giamBot: [], saiTienCK: [] },
+    thucTeChanges: { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] },
     prevInvoiceStudents: [],
     currentInvoiceStudents: [],
     monthYear: '',
@@ -296,6 +298,7 @@ window.App = {
     });
     document.getElementById('btn-export-accounting')?.addEventListener('click', () => this.exportAccounting());
     document.getElementById('btn-export-nhac-ph')?.addEventListener('click', () => this.exportNhacPH());
+    document.getElementById('filter-thay-doi')?.addEventListener('change', (e) => this._filterThucTeChanges(e.target.value));
 
     // Accounting sub-tab buttons
     document.getElementById('btn-auto-select-invoice')?.addEventListener('click', () => this.autoSelectInvoice());
@@ -421,8 +424,17 @@ window.App = {
         currMap,
         vtbMatchedMSHS,
         suspendedSet,
-        freeTuitionSet
+        freeTuitionSet,
+        vtbAmountByMSHS
       );
+
+      // Tab 2: Thay đổi DS Thực tế
+      const prevMonthDSTab2 = Storage.loadPrevMonthDS();
+      if (prevMonthDSTab2 && prevMonthDSTab2.length > 0) {
+        this.state.thucTeChanges = Accounting.detectThucTeChanges(prevMonthDSTab2, this.state.students, suspendedSet);
+      } else {
+        this.state.thucTeChanges = { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] };
+      }
 
       // 7. Get new STKs
       const newSTKs = Matcher.getNewSTKs(this.state.vtbTransactions, this.state.students, stkPhu);
@@ -716,8 +728,11 @@ window.App = {
     // DS Ghi HĐ (with checkboxes)
     this.renderInvoiceTable();
 
-    // Thay đổi DS Ghi HĐ (Tăng/Giảm)
+    // Thay đổi DS Ghi HĐ (Tăng/Giảm + CK sai tiền)
     this.renderInvoiceChanges();
+
+    // Thay đổi DS Thực tế (HS mới/Nghỉ/Đổi lớp/HP/Tạm ngưng)
+    this.renderThucTeChanges();
 
     // Update prev/curr month comparison
     const prevMonthCountEl = document.getElementById('prev-month-count');
@@ -732,7 +747,7 @@ window.App = {
   },
 
   renderInvoiceChanges: function() {
-    const changes = this.state.invoiceChanges || { tangMoi: [], giamBot: [] };
+    const changes = this.state.invoiceChanges || { tangMoi: [], giamBot: [], saiTienCK: [] };
 
     // TĂNG MỚI
     const tangTbody = document.querySelector('#table-acc-tang tbody');
@@ -768,6 +783,79 @@ window.App = {
         </tr>`).join('');
       }
       if (giamCountEl) giamCountEl.textContent = `${changes.giamBot.length} HS`;
+    }
+
+    // CK SAI TIỀN
+    const saiTbody = document.querySelector('#table-acc-sai tbody');
+    const saiCountEl = document.getElementById('acc-sai-count');
+    if (saiTbody) {
+      if (changes.saiTienCK.length === 0) {
+        saiTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Không có CK sai tiền</td></tr>';
+      } else {
+        saiTbody.innerHTML = changes.saiTienCK.map(c => `<tr>
+          <td>${c.mshs}</td>
+          <td>${c.fullName}</td>
+          <td>${c.className}</td>
+          <td class="number">${Utils.formatCurrency(c.hocPhi)}</td>
+          <td class="number">${Utils.formatCurrency(c.ckNop)}</td>
+          <td class="number" style="color:${c.chenhLech < 0 ? 'var(--color-danger)' : 'var(--color-warning)'}">${c.lyDo}</td>
+        </tr>`).join('');
+      }
+      if (saiCountEl) saiCountEl.textContent = `${changes.saiTienCK.length} HS`;
+    }
+  },
+
+  // ========================
+  // TAB 2: Thay đổi DS Thực tế
+  // ========================
+  renderThucTeChanges: function() {
+    const tc = this.state.thucTeChanges || { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] };
+
+    // Flatten all changes into one table with type label
+    const allChanges = [];
+    tc.moi.forEach(c => allChanges.push({ ...c, type: 'moi', typeLabel: '🆕 HS mới' }));
+    tc.nghiHoc.forEach(c => allChanges.push({ ...c, type: 'nghiHoc', typeLabel: '🚫 Nghỉ học' }));
+    tc.doiLop.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.classNameNew || c.classNameOld, hocPhi: c.hocPhi, type: 'doiLop', typeLabel: `🔄 ${c.classNameOld} → ${c.classNameNew}`, ghiChu: c.ghiChu }));
+    tc.hpThayDoi.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.className, hocPhi: c.hocPhiNew, type: 'hpThayDoi', typeLabel: '💰 HP thay đổi', ghiChu: c.ghiChu }));
+    tc.tamNgung.forEach(c => allChanges.push({ ...c, type: 'tamNgung', typeLabel: '⏸️ Tạm ngưng' }));
+
+    this._thucTeChangesAll = allChanges;
+    this._filterThucTeChanges('all');
+
+    // Summary
+    const summaryEl = document.getElementById('thay-doi-summary');
+    if (summaryEl) {
+      const total = allChanges.length;
+      summaryEl.textContent = total > 0 ? `${total} thay đổi tổng cộng` : 'Không có thay đổi so với tháng trước';
+    }
+  },
+
+  _filterThucTeChanges: function(filter) {
+    const all = this._thucTeChangesAll || [];
+    const filtered = filter === 'all' ? all : all.filter(c => c.type === filter);
+
+    const tbody = document.querySelector('#table-thay-doi-real tbody');
+    if (!tbody) return;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Không có thay đổi</td></tr>';
+    } else {
+      tbody.innerHTML = filtered.map(c => `<tr>
+        <td>${c.mshs}</td>
+        <td>${c.fullName}</td>
+        <td>${c.className}</td>
+        <td class="number">${Utils.formatCurrency(c.hocPhi || 0)}</td>
+        <td>${c.typeLabel}</td>
+        <td>${c.ghiChu || ''}</td>
+      </tr>`).join('');
+    }
+
+    // Update badge count
+    const countEl = document.getElementById('thay-doi-summary');
+    if (countEl) {
+      countEl.textContent = filter === 'all'
+        ? `${all.length} thay đổi`
+        : `${filtered.length} / ${all.length} thay đổi`;
     }
   },
 

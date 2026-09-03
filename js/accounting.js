@@ -8,17 +8,12 @@ window.Accounting = {
    * Generate practical student list (DS Thực tế)
    */
   generateThucTe(students) {
-    // Exclude students who permanently quit
     const validStudents = students.filter(s => {
       const note = (s.ghiChuGiaDinh || '').toLowerCase().trim();
-      // Keep 'nghỉ hè' but exclude 'nghỉ học'
-      if (note.includes('nghỉ học')) {
-        return false;
-      }
+      if (note.includes('nghỉ học')) return false;
       return true;
     });
 
-    // Sort by className then STT
     validStudents.sort((a, b) => {
       const c = (a.className || '').localeCompare(b.className || '');
       if (c !== 0) return c;
@@ -67,23 +62,19 @@ window.Accounting = {
   },
 
   /**
-   * Compare DS Ghi HĐ tháng trước vs tháng này → Tăng/Giảm.
+   * TAB 1: So sánh DS Ghi HĐ tháng trước vs tháng này.
    *
-   * TĂNG MỚI: HS tháng trước KHÔNG có trong DS Ghi HĐ, tháng này CÓ.
-   *   - Lý do có thể: CK vào TK Công ty (bắt buộc), hoặc thêm thủ công.
-   *
-   * GIẢM BỚT: HS tháng trước CÓ trong DS Ghi HĐ, tháng này KHÔNG còn.
-   *   - Lý do: Nghỉ học, HP = 0, tạm ngưng, hoặc bỏ chọn thủ công.
+   * Returns: { tangMoi, giamBot, saiTienCK }
    */
-  detectChanges(prevInvoiceStudents, currentInvoiceStudents, currMap, vtbMatchedMSHS, suspendedSet, freeTuitionSet) {
-    const changes = { tangMoi: [], giamBot: [] };
+  detectChanges(prevInvoiceStudents, currentInvoiceStudents, currMap, vtbMatchedMSHS, suspendedSet, freeTuitionSet, vtbAmountByMSHS) {
+    const changes = { tangMoi: [], giamBot: [], saiTienCK: [] };
 
     const prevInvSet = new Set((prevInvoiceStudents || []).map(s => s.mshs));
     const currInvSet = new Set((currentInvoiceStudents || []).map(s => s.mshs));
 
     // === TĂNG MỚI ===
     for (const mshs of currInvSet) {
-      if (prevInvSet.has(mshs)) continue; // Tháng trước đã có
+      if (prevInvSet.has(mshs)) continue;
 
       const student = currMap.get(mshs);
       const isVTB = vtbMatchedMSHS.has(mshs);
@@ -108,22 +99,18 @@ window.Accounting = {
 
     // === GIẢM BỚT ===
     for (const mshs of prevInvSet) {
-      if (currInvSet.has(mshs)) continue; // Tháng này vẫn còn
+      if (currInvSet.has(mshs)) continue;
 
       const student = currMap.get(mshs) || null;
       let lyDo = '';
 
       if (!student) {
-        // Không còn trong DS Thực tế → nghỉ học
         lyDo = '🚫 Nghỉ học';
       } else if (freeTuitionSet.has(mshs)) {
-        // HP = 0 → miễn giảm
         lyDo = '💰 HP = 0';
       } else if (suspendedSet.has(mshs)) {
-        // Tạm ngưng
         lyDo = '⏸️ Tạm ngưng';
       } else {
-        // Bỏ chọn thủ công
         lyDo = 'Bỏ chọn khỏi DS Ghi HĐ';
       }
 
@@ -136,7 +123,123 @@ window.Accounting = {
       });
     }
 
+    // === CK SAI TIỀN (HS có trong DS Ghi HĐ + CK VTB nhưng sai số tiền) ===
+    for (const mshs of currInvSet) {
+      if (!vtbMatchedMSHS.has(mshs)) continue;
+      const student = currMap.get(mshs);
+      if (!student) continue;
+
+      const hp = Number(student.hocPhi) || 0;
+      const ckNop = (vtbAmountByMSHS && vtbAmountByMSHS[mshs]) || 0;
+      if (hp > 0 && ckNop !== hp) {
+        const chenh = ckNop - hp;
+        changes.saiTienCK.push({
+          mshs,
+          fullName: student.fullName,
+          className: student.className,
+          hocPhi: hp,
+          ckNop,
+          chenhLech: chenh,
+          lyDo: chenh < 0
+            ? `Thiếu ${Utils.formatCurrency(-chenh)}`
+            : `Dư ${Utils.formatCurrency(chenh)}`
+        });
+      }
+    }
+
     return changes;
+  },
+
+  /**
+   * TAB 2: So sánh DS Thực tế tháng trước vs tháng này.
+   *
+   * Returns: { moi, nghiHoc, doiLop, tamNgung, hpThayDoi }
+   */
+  detectThucTeChanges(prevStudents, currStudents, suspendedSet) {
+    const prevMap = new Map();
+    for (const s of prevStudents) {
+      if (!prevMap.has(s.mshs)) prevMap.set(s.mshs, s);
+    }
+    const currMap = new Map();
+    for (const s of currStudents) {
+      if (!currMap.has(s.mshs)) currMap.set(s.mshs, s);
+    }
+
+    const result = { moi: [], nghiHoc: [], doiLop: [], tamNgung: [], hpThayDoi: [] };
+
+    // === HS MỚI ===
+    for (const [mshs, s] of currMap.entries()) {
+      if (prevMap.has(mshs)) continue;
+      result.moi.push({
+        mshs,
+        fullName: s.fullName,
+        className: s.className,
+        hocPhi: Number(s.hocPhi) || 0,
+        ghiChu: 'Thêm vào DS Thực tế'
+      });
+    }
+
+    // === NGHỈ HỌC ===
+    for (const [mshs, s] of prevMap.entries()) {
+      if (currMap.has(mshs)) continue;
+      result.nghiHoc.push({
+        mshs,
+        fullName: s.fullName,
+        className: s.className,
+        hocPhi: Number(s.hocPhi) || 0,
+        ghiChu: 'Xóa khỏi DS Thực tế'
+      });
+    }
+
+    // === ĐỔI LỚP / HP THAY ĐỔI / TẠM NGƯNG ===
+    for (const [mshs, c] of currMap.entries()) {
+      const p = prevMap.get(mshs);
+      if (!p) continue;
+
+      const cHP = Number(c.hocPhi) || 0;
+      const pHPOld = Number(p.hocPhi) || 0;
+
+      // Đổi lớp
+      if (c.className !== p.className) {
+        result.doiLop.push({
+          mshs,
+          fullName: c.fullName,
+          classNameOld: p.className,
+          classNameNew: c.className,
+          hocPhi: cHP,
+          ghiChu: 'Cập nhật lớp mới'
+        });
+      }
+
+      // HP thay đổi (giữ nguyên lớp)
+      if (cHP !== pHPOld && c.className === p.className) {
+        result.hpThayDoi.push({
+          mshs,
+          fullName: c.fullName,
+          className: c.className,
+          hocPhiOld: pHPOld,
+          hocPhiNew: cHP,
+          ghiChu: pHPOld === 0
+            ? 'HP mới (tháng TRC = 0)'
+            : cHP === 0
+              ? 'HP = 0 (miễn/tạm ngưng)'
+              : `HP ${Utils.formatCurrency(pHPOld)} → ${Utils.formatCurrency(cHP)}`
+        });
+      }
+
+      // Tạm ngưng (vẫn có trong DS nhưng HP = 0)
+      if (suspendedSet.has(mshs) && cHP === 0 && p.className === c.className) {
+        result.tamNgung.push({
+          mshs,
+          fullName: c.fullName,
+          className: c.className,
+          hocPhi: 0,
+          ghiChu: 'Tạm ngưng lớp'
+        });
+      }
+    }
+
+    return result;
   },
 
   /**
