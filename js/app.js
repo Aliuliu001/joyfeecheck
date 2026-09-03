@@ -825,11 +825,12 @@ window.App = {
 
     tbody.innerHTML = hdRows.map((r, idx) => {
       const isSelected = selectedMSHS.has(r.mshs);
-      const isMandatory = r.mandatory || false;
-      const wasInPrev = r.wasInPrevMonth || false;
+      const isTangMoi = r.mandatory || false;
+      const isBoSung = r.boSung || false;
+
       let tag = '';
-      if (!wasInPrev && isMandatory) tag = ' <span class="badge success" style="font-size:10px">📈 Tăng mới</span>';
-      if (wasInPrev && !isMandatory) tag = ' <span class="badge error" style="font-size:10px">📉 Giảm</span>';
+      if (isTangMoi) tag = ' <span class="badge success" style="font-size:10px">📈 Tăng mới</span>';
+      if (isBoSung) tag = ' <span class="badge info" style="font-size:10px">📋 Bổ sung bởi Kế toán</span>';
 
       if (isSelected) {
         totalAmount += (Number(r.hocPhi) || 0);

@@ -24,9 +24,28 @@ window.Accounting = {
     for (const s of studentsThucTe) {
       const isVTB = vtbMatchedMSHS.has(s.mshs);
       const wasInPrevMonth = prevMonthHDList.includes(s.mshs);
-      const isSelected = (wasInPrevMonth && isVTB) || (!wasInPrevMonth && isVTB);
+
+      // Logic DS Ghi HĐ tháng này:
+      // 1. Co CK VTB thang nay → ✅ Phai co HĐ (bat buoc)
+      // 2. Thang TRUOC co trong DS Ghi HĐ → ✅ Giu nguyen (Ke toan da them)
+      // 3. Khong co ca hai → ❌ Khong co trong DS
+      const isSelected = isVTB || wasInPrevMonth;
+
       if (isSelected) selectedMSHS.add(s.mshs);
-      rows.push({ ...s, mandatory: isVTB && !wasInPrevMonth, wasInPrevMonth });
+
+      // Tag:
+      // - isVTB + !wasInPrevMonth → Moi CK VTB thang nay (Tang moi)
+      // - isVTB + wasInPrevMonth → Giu nguyen (khong tag)
+      // - !isVTB + wasInPrevMonth → Ke toan them thu cong (Bo sung)
+      const isBoSung = !isVTB && wasInPrevMonth;
+      const isTangMoi = isVTB && !wasInPrevMonth;
+
+      rows.push({
+        ...s,
+        mandatory: isTangMoi,
+        boSung: isBoSung,
+        wasInPrevMonth
+      });
     }
     return { rows, selectedMSHS };
   },
