@@ -726,40 +726,30 @@ window.App = {
   // RENDER: Accounting Tabs
   // ========================
   renderAccountingTabs: function() {
-    // DS Thực tế
+    // Tab 1: DS Thực tế
     const thucTeTbody = document.querySelector('#table-acc-real tbody');
     if (thucTeTbody) {
       thucTeTbody.innerHTML = this.state.thucTeRows.map(r => `<tr>
-        <td>${r.stt}</td>
-        <td>${r.mshs}</td>
-        <td>${r.className}</td>
-        <td>${r.fullName}</td>
-        <td>${r.teacher}</td>
-        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td>${r.ghiChu || ''}</td>
+        <td>${r.stt}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher}</td><td class="number">${Utils.formatCurrency(r.hocPhi)}</td><td>${r.ghiChu || ''}</td>
       </tr>`).join('');
       const realCountEl = document.getElementById('acc-real-count');
       if (realCountEl) realCountEl.textContent = `${this.state.thucTeRows.length} HS`;
     }
 
-    // DS Ghi HĐ (with checkboxes)
-    this.renderInvoiceTable();
+    // Tab 2: DS Ghi HĐ
+    this.renderInvoiceTableHD();
 
-    // Thay đổi DS Ghi HĐ (Tăng/Giảm + CK sai tiền)
+    // Tab 3: Thay đổi HĐ
     this.renderInvoiceChanges();
 
-    // Thay đổi DS Thực tế (HS mới/Nghỉ/Đổi lớp/HP/Tạm ngưng)
+    // Tab 4: Thay đổi DS
     this.renderThucTeChanges();
 
-    // Update prev/curr month comparison
-    const prevMonthCountEl = document.getElementById('prev-month-count');
-    const currMonthCountEl = document.getElementById('curr-month-count');
-    if (prevMonthCountEl) {
-      const prevHD = Storage.loadPrevMonthHD() || [];
-      prevMonthCountEl.textContent = prevHD.length;
-    }
-    if (currMonthCountEl) {
-      currMonthCountEl.textContent = this.state.selectedHDMSHS?.size || 0;
+    // Month label
+    const monthLabel = document.getElementById('invoice-month-label');
+    if (monthLabel) {
+      const my = this.state.monthYear || '';
+      monthLabel.textContent = my ? my.split('-').reverse().join('.') : '...';
     }
   },
 
@@ -768,57 +758,32 @@ window.App = {
 
     // TĂNG MỚI
     const tangTbody = document.querySelector('#table-acc-tang tbody');
-    const tangCountEl = document.getElementById('acc-tang-count');
     if (tangTbody) {
-      if (changes.tangMoi.length === 0) {
-        tangTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary)">Không có HS tăng mới</td></tr>';
-      } else {
-        tangTbody.innerHTML = changes.tangMoi.map(c => `<tr>
-          <td>${c.mshs}</td>
-          <td>${c.fullName}</td>
-          <td>${c.className}</td>
-          <td class="number">${Utils.formatCurrency(c.hocPhi)}</td>
-          <td>${c.lyDo}</td>
-        </tr>`).join('');
-      }
-      if (tangCountEl) tangCountEl.textContent = `${changes.tangMoi.length} HS`;
+      tangTbody.innerHTML = changes.tangMoi.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Không có</td></tr>'
+        : changes.tangMoi.map(c => `<tr><td>${c.mshs}</td><td>${c.fullName}</td><td>${c.className}</td><td class="number">${Utils.formatCurrency(c.hocPhi)}</td><td>${c.lyDo}</td></tr>`).join('');
+      const el = document.getElementById('acc-tang-count');
+      if (el) el.textContent = `${changes.tangMoi.length} HS`;
     }
 
     // GIẢM BỚT
     const giamTbody = document.querySelector('#table-acc-giam tbody');
-    const giamCountEl = document.getElementById('acc-giam-count');
     if (giamTbody) {
-      if (changes.giamBot.length === 0) {
-        giamTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary)">Không có HS giảm bớt</td></tr>';
-      } else {
-        giamTbody.innerHTML = changes.giamBot.map(c => `<tr>
-          <td>${c.mshs}</td>
-          <td>${c.fullName}</td>
-          <td>${c.className}</td>
-          <td class="number">${Utils.formatCurrency(c.hocPhi)}</td>
-          <td>${c.lyDo}</td>
-        </tr>`).join('');
-      }
-      if (giamCountEl) giamCountEl.textContent = `${changes.giamBot.length} HS`;
+      giamTbody.innerHTML = changes.giamBot.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Không có</td></tr>'
+        : changes.giamBot.map(c => `<tr><td>${c.mshs}</td><td>${c.fullName}</td><td>${c.className}</td><td class="number">${Utils.formatCurrency(c.hocPhi)}</td><td>${c.lyDo}</td></tr>`).join('');
+      const el = document.getElementById('acc-giam-count');
+      if (el) el.textContent = `${changes.giamBot.length} HS`;
     }
 
     // CK SAI TIỀN
     const saiTbody = document.querySelector('#table-acc-sai tbody');
-    const saiCountEl = document.getElementById('acc-sai-count');
     if (saiTbody) {
-      if (changes.saiTienCK.length === 0) {
-        saiTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Không có CK sai tiền</td></tr>';
-      } else {
-        saiTbody.innerHTML = changes.saiTienCK.map(c => `<tr>
-          <td>${c.mshs}</td>
-          <td>${c.fullName}</td>
-          <td>${c.className}</td>
-          <td class="number">${Utils.formatCurrency(c.hocPhi)}</td>
-          <td class="number">${Utils.formatCurrency(c.ckNop)}</td>
-          <td class="number" style="color:${c.chenhLech < 0 ? 'var(--color-danger)' : 'var(--color-warning)'}">${c.lyDo}</td>
-        </tr>`).join('');
-      }
-      if (saiCountEl) saiCountEl.textContent = `${changes.saiTienCK.length} HS`;
+      saiTbody.innerHTML = changes.saiTienCK.length === 0
+        ? '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Không có</td></tr>'
+        : changes.saiTienCK.map(c => `<tr><td>${c.mshs}</td><td>${c.fullName}</td><td>${c.className}</td><td class="number">${Utils.formatCurrency(c.hocPhi)}</td><td class="number">${Utils.formatCurrency(c.ckNop)}</td><td class="number" style="color:${c.chenhLech < 0 ? 'var(--color-danger)' : 'var(--color-warning)'}">${c.lyDo}</td></tr>`).join('');
+      const el = document.getElementById('acc-sai-count');
+      if (el) el.textContent = `${changes.saiTienCK.length} HS`;
     }
   },
 
@@ -826,111 +791,68 @@ window.App = {
   // TAB 2: Thay đổi DS Thực tế
   // ========================
   renderThucTeChanges: function() {
-    const tc = this.state.thucTeChanges || { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [], tamNgung: [] };
-
-    // Flatten all changes into one table with type label
+    const tc = this.state.thucTeChanges || { moi: [], nghiHoc: [], doiLop: [], hpThayDoi: [] };
     const allChanges = [];
-    tc.moi.forEach(c => allChanges.push({ ...c, type: 'moi', typeLabel: '🆕 Cần thêm vào Kế toán' }));
+    tc.moi.forEach(c => allChanges.push({ ...c, type: 'moi', typeLabel: '🆕 Cần thêm vào KT' }));
     tc.nghiHoc.forEach(c => allChanges.push({ ...c, type: 'nghiHoc', typeLabel: '🚫 Không còn trong DS HS' }));
-    tc.doiLop.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.classNameNew || c.classNameOld, hocPhi: c.hocPhi, type: 'doiLop', typeLabel: `🔄 Lớp: ${c.classNameOld} → ${c.classNameNew}`, ghiChu: c.ghiChu }));
+    tc.doiLop.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.classNameNew || c.classNameOld, hocPhi: c.hocPhi, type: 'doiLop', typeLabel: '🔄 Đổi lớp', ghiChu: `${c.classNameOld} → ${c.classNameNew}` }));
     tc.hpThayDoi.forEach(c => allChanges.push({ mshs: c.mshs, fullName: c.fullName, className: c.className, hocPhi: c.hocPhiNew, type: 'hpThayDoi', typeLabel: '💰 HP thay đổi', ghiChu: c.ghiChu }));
-    tc.tamNgung.forEach(c => allChanges.push({ ...c, type: 'tamNgung', typeLabel: '⏸️ Tạm ngưng' }));
-
     this._thucTeChangesAll = allChanges;
     this._filterThucTeChanges('all');
-
-    // Summary
     const summaryEl = document.getElementById('thay-doi-summary');
-    if (summaryEl) {
-      const total = allChanges.length;
-      summaryEl.textContent = total > 0 ? `${total} thay đổi tổng cộng` : 'Không có thay đổi so với tháng trước';
-    }
+    if (summaryEl) summaryEl.textContent = allChanges.length > 0 ? `${allChanges.length} thay đổi` : 'Không có thay đổi';
   },
 
   _filterThucTeChanges: function(filter) {
     const all = this._thucTeChangesAll || [];
     const filtered = filter === 'all' ? all : all.filter(c => c.type === filter);
-
     const tbody = document.querySelector('#table-thay-doi-real tbody');
     if (!tbody) return;
-
-    if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-secondary)">Không có thay đổi</td></tr>';
-    } else {
-      tbody.innerHTML = filtered.map(c => `<tr>
-        <td>${c.mshs}</td>
-        <td>${c.fullName}</td>
-        <td>${c.className}</td>
-        <td class="number">${Utils.formatCurrency(c.hocPhi || 0)}</td>
-        <td>${c.typeLabel}</td>
-        <td>${c.ghiChu || ''}</td>
-      </tr>`).join('');
-    }
-
-    // Update badge count
-    const countEl = document.getElementById('thay-doi-summary');
-    if (countEl) {
-      countEl.textContent = filter === 'all'
-        ? `${all.length} thay đổi`
-        : `${filtered.length} / ${all.length} thay đổi`;
-    }
+    tbody.innerHTML = filtered.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Không có thay đổi</td></tr>'
+      : filtered.map(c => `<tr><td>${c.mshs}</td><td>${c.fullName}</td><td>${c.className}</td><td class="number">${Utils.formatCurrency(c.hocPhi || 0)}</td><td>${c.typeLabel}</td><td>${c.ghiChu || ''}</td></tr>`).join('');
+    const summaryEl = document.getElementById('thay-doi-summary');
+    if (summaryEl) summaryEl.textContent = filter === 'all' ? `${all.length} thay đổi` : `${filtered.length}/${all.length}`;
   },
 
-  renderInvoiceTable: function() {
+  renderInvoiceTableHD: function() {
     const tbody = document.querySelector('#table-acc-invoice tbody');
     if (!tbody) return;
-    const selectedCount = document.getElementById('invoice-selected-count');
 
-    // Build sets for labels
-    const newStudents = new Set();
-    if (this.state.changeRecords) {
-      this.state.changeRecords.forEach(c => {
-        if (c.type === APP_CONFIG.CHANGE_TYPE.NEW) newStudents.add(c.mshs);
-      });
-    }
+    const hdRows = this.state.ghiHDRows || [];
+    const selectedMSHS = this.state.selectedHDMSHS || new Set();
 
-    tbody.innerHTML = this.state.ghiHDRows.map((r, idx) => {
-      const isSelected = this.state.selectedHDMSHS.has(r.mshs);
+    let totalAmount = 0;
+    let selectedCount = 0;
+
+    tbody.innerHTML = hdRows.map((r, idx) => {
+      const isSelected = selectedMSHS.has(r.mshs);
       const isMandatory = r.mandatory || false;
-      const isNew = newStudents.has(r.mshs);
-      
-      let badges = '';
-      if (isNew) badges += ' <span class="badge success" style="font-size:10px">Tang moi</span>';
-      if (isMandatory) badges += ' <span class="badge info" style="font-size:10px">CK TK CT</span>';
+      const wasInPrev = r.wasInPrevMonth || false;
+      let tag = '';
+      if (!wasInPrev && isMandatory) tag = ' <span class="badge success" style="font-size:10px">📈 Tăng mới</span>';
+      if (wasInPrev && !isMandatory) tag = ' <span class="badge error" style="font-size:10px">📉 Giảm</span>';
 
-      return `<tr class="${isMandatory ? 'mandatory-row' : ''}">
-        <td>
-          <input type="checkbox" class="invoice-check" data-mshs="${r.mshs}" 
-            ${isSelected ? 'checked' : ''} ${isMandatory ? 'disabled title="Bắt buộc (CK vào TK Công ty)"' : ''}
-            onchange="App.toggleInvoiceItem('${r.mshs}', this.checked)">
-        </td>
-        <td>${idx + 1}</td>
-        <td>${r.mshs}</td>
-        <td>${r.className}</td>
-        <td>${r.fullName}</td>
-        <td>${r.teacher}</td>
+      if (isSelected) {
+        totalAmount += (Number(r.hocPhi) || 0);
+        selectedCount++;
+      }
+
+      return `<tr>
+        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td><td>${r.teacher}</td>
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td>${r.ghiChu || ''}${badges}</td>
+        <td>${r.ghiChu || ''}${tag}</td>
       </tr>`;
     }).join('');
 
-    if (selectedCount) selectedCount.textContent = this.state.selectedHDMSHS.size;
-    const invoiceCountEl = document.getElementById('acc-invoice-count');
-    if (invoiceCountEl) invoiceCountEl.textContent = `${this.state.selectedHDMSHS.size}/${this.state.ghiHDRows.length} HS`;
-    const currMonthCountEl = document.getElementById('curr-month-count');
-    if (currMonthCountEl) currMonthCountEl.textContent = this.state.selectedHDMSHS.size;
-
-    // Total amount
-    const totalAmountEl = document.getElementById('total-amount');
-    if (totalAmountEl) {
-      let totalAmount = 0;
-      this.state.ghiHDRows.forEach(r => {
-        if (this.state.selectedHDMSHS.has(r.mshs)) {
-          totalAmount += (Number(r.hocPhi) || 0);
-        }
-      });
-      totalAmountEl.textContent = Utils.formatCurrency(totalAmount);
-    }
+    const countEl = document.getElementById('acc-invoice-count');
+    if (countEl) countEl.textContent = `${selectedCount} HS`;
+    const currCountEl = document.getElementById('curr-month-count');
+    if (currCountEl) currCountEl.textContent = selectedCount;
+    const prevCountEl = document.getElementById('prev-month-count');
+    if (prevCountEl) prevCountEl.textContent = (this.state.prevInvoiceStudents || []).length;
+    const totalEl = document.getElementById('total-amount');
+    if (totalEl) totalEl.textContent = Utils.formatCurrency(totalAmount);
   },
 
   getChangeTypeInfo: function(type) {
@@ -1298,10 +1220,7 @@ window.App = {
   },
 
   exportAccounting: function() {
-    if (!this.state.thucTeRows.length) {
-      Utils.showToast('Chưa có dữ liệu kế toán', 'error');
-      return;
-    }
+    if (!this.state.thucTeRows.length) { Utils.showToast('Chưa có dữ liệu kế toán', 'error'); return; }
     const monthYear = document.getElementById('month-selector')?.value || '';
     const ghiHDSelected = this.state.ghiHDRows.filter(r => this.state.selectedHDMSHS.has(r.mshs));
     Exporter.exportKeToan(this.state.thucTeRows, ghiHDSelected, this.state.invoiceChanges, monthYear);

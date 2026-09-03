@@ -338,6 +338,8 @@
 
     <!-- TAB 4: Báo cáo Kế toán -->
     <section id="accounting-tab" class="tab-content">
+      <h2>📊 Báo cáo Kế toán</h2>
+      
       <div class="sub-tab-bar">
         <button class="sub-tab-btn active" data-subtab="acc-real">DS Thực tế</button>
         <button class="sub-tab-btn" data-subtab="acc-invoice">DS Ghi HĐ</button>
@@ -345,171 +347,110 @@
         <button class="sub-tab-btn" data-subtab="acc-changes-real">Thay đổi DS</button>
       </div>
 
+      <!-- TAB 1: DS Thực tế -->
       <div id="acc-real" class="sub-tab-content active mt-4">
         <div class="card glass-card">
           <div class="flex-between mb-3">
             <h3>📋 DS Thực tế — Tháng đang đối soát</h3>
             <span class="badge" id="acc-real-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">Tất cả HS đang học trong tháng này. Dùng để đối chiếu tổng số.</p>
+          <p class="text-sm text-secondary mb-3">DS Học sinh tổng (import đầu tiên). Danh sách master, nguồn gốc dữ liệu.</p>
           <div class="table-container">
             <table id="table-acc-real">
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>MSHS</th>
-                  <th>Mã lớp</th>
-                  <th>Họ tên</th>
-                  <th>GV</th>
-                  <th>Học phí</th>
-                  <th>Ghi chú</th>
-                </tr>
-              </thead>
+              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th><th>Ghi chú</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
       </div>
 
+      <!-- TAB 2: DS Ghi HĐ -->
       <div id="acc-invoice" class="sub-tab-content mt-4">
         <div class="card glass-card">
           <div class="flex-between mb-3">
-            <h3>📝 DS Ghi HĐ — Tháng đang đối soát</h3>
-            <div>
-              <span class="badge" id="acc-invoice-count">0 HS</span>
-              <button id="btn-auto-select-invoice" class="btn btn-secondary btn-sm" style="margin-left: 8px;">Tự động chọn (Tháng trước + Cty)</button>
-            </div>
+            <h3>📝 DS Ghi HĐ Tháng <span id="invoice-month-label"></span></h3>
+            <span class="badge" id="acc-invoice-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS cần viết hóa đơn tháng này. DS dựa trên: tháng trước có + tháng này CK VTB, hoặc mới CK VTB tháng này.</p>
-          <div class="flex gap-2 mb-3 text-sm">
+          <p class="text-sm text-secondary mb-3">DS dựa trên: tháng trước có DS Ghi HĐ + tháng này CK VTB, hoặc mới CK VTB tháng này.</p>
+          <div class="flex gap-3 mb-3 text-sm">
             <span>📊 Tháng trước: <b id="prev-month-count">0</b> HS</span>
             <span>→ Tháng này: <b id="curr-month-count">0</b> HS</span>
             <span>| Tổng tiền: <b id="total-amount">0đ</b></span>
           </div>
           <div class="table-container">
             <table id="table-acc-invoice">
-              <thead>
-                <tr>
-                  <th><input type="checkbox" id="check-all-invoice"></th>
-                  <th>STT</th>
-                  <th>MSHS</th>
-                  <th>Mã lớp</th>
-                  <th>Họ tên</th>
-                  <th>GV</th>
-                  <th>Học phí</th>
-                  <th>Ghi chú</th>
-                </tr>
-              </thead>
+              <thead><tr><th>STT</th><th>MSHS</th><th>Mã lớp</th><th>Họ tên</th><th>GV</th><th>Học phí</th><th>Ghi chú</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- TAB 1: Thay đổi DS Ghi HĐ -->
+      <!-- TAB 3: Thay đổi HĐ -->
       <div id="acc-changes-hd" class="sub-tab-content mt-4">
         <div class="card glass-card mb-4">
           <div class="flex-between mb-3">
-            <h3>📈 TĂNG MỚI — Tháng này thêm vào DS Ghi HĐ</h3>
+            <h3>📈 TĂNG MỚI</h3>
             <span class="badge success" id="acc-tang-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS chưa có DS Ghi HĐ tháng trước, tháng này cần ghi HĐ. Nếu CK vào TK Công ty → bắt buộc.</p>
+          <p class="text-sm text-secondary mb-3">HS tháng trước KHÔNG có DS Ghi HĐ, tháng này CÓ (mới CK VTB).</p>
           <div class="table-container">
             <table id="table-acc-tang">
-              <thead>
-                <tr>
-                  <th>MSHS</th>
-                  <th>Họ tên</th>
-                  <th>Lớp</th>
-                  <th>Học phí</th>
-                  <th>Lý do</th>
-                </tr>
-              </thead>
+              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
-
         <div class="card glass-card mb-4">
           <div class="flex-between mb-3">
-            <h3>📉 GIẢM BỚT — Tháng trước có, tháng này không</h3>
+            <h3>📉 GIẢM BỚT</h3>
             <span class="badge error" id="acc-giam-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS tháng trước có DS Ghi HĐ, tháng này không còn (nghỉ học / HP=0 / tạm ngưng / bỏ chọn).</p>
+          <p class="text-sm text-secondary mb-3">HS tháng trước CÓ DS Ghi HĐ, tháng này KHÔNG còn.</p>
           <div class="table-container">
             <table id="table-acc-giam">
-              <thead>
-                <tr>
-                  <th>MSHS</th>
-                  <th>Họ tên</th>
-                  <th>Lớp</th>
-                  <th>Học phí tháng TRC</th>
-                  <th>Lý do</th>
-                </tr>
-              </thead>
+              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí tháng TRC</th><th>Lý do</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
-
         <div class="card glass-card">
           <div class="flex-between mb-3">
-            <h3>⚠️ CK SAI TIỀN — CK VTB sai HP quy định</h3>
+            <h3>⚠️ CK SAI TIỀN</h3>
             <span class="badge warning" id="acc-sai-count">0 HS</span>
           </div>
-          <p class="text-sm text-secondary mb-3">HS có trong DS Ghi HĐ + CK vào TK Công ty (VTB) nhưng số tiền không khớp HP. Cần kiểm tra lại.</p>
+          <p class="text-sm text-secondary mb-3">HS CK VTB sai HP quy định. Cần kiểm tra lại.</p>
           <div class="table-container">
             <table id="table-acc-sai">
-              <thead>
-                <tr>
-                  <th>MSHS</th>
-                  <th>Họ tên</th>
-                  <th>Lớp</th>
-                  <th>HP quy định</th>
-                  <th>Đã CK</th>
-                  <th>Chênh lệch</th>
-                </tr>
-              </thead>
+              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP quy định</th><th>Đã CK</th><th>Chênh lệch</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- TAB 2: Thay đổi DS Thực tế -->
+      <!-- TAB 4: Thay đổi DS -->
       <div id="acc-changes-real" class="sub-tab-content mt-4">
         <div class="card glass-card mb-3">
           <div class="flex-between">
             <h3>🔄 Thay đổi DS Thực tế</h3>
           </div>
-          <p class="text-sm text-secondary">So sánh: DS HS tổng (import mới nhất) vs DS Thực tế tháng TRƯỚC (trong file Kế toán). Dùng để cập nhật file Kế toán.</p>
-          <!-- Filter -->
+          <p class="text-sm text-secondary">So sánh: DS HS tổng (import mới nhất) vs DS Thực tế tháng TRƯỚC (trong file Kế toán).</p>
           <div class="flex gap-2 mt-3 mb-3">
             <select id="filter-thay-doi" class="form-select" style="max-width:200px">
-              <option value="all">📋 Tất cả thay đổi</option>
-              <option value="moi">🆕 Cần thêm vào Kế toán</option>
+              <option value="all">📋 Tất cả</option>
+              <option value="moi">🆕 Cần thêm vào KT</option>
               <option value="nghiHoc">🚫 Không còn trong DS HS</option>
               <option value="doiLop">🔄 Đổi lớp</option>
               <option value="hpThayDoi">💰 HP thay đổi</option>
-              <option value="tamNgung">⏸️ Tạm ngưng</option>
             </select>
             <span class="text-sm" style="line-height:36px; color:var(--text-secondary)" id="thay-doi-summary"></span>
           </div>
         </div>
-
         <div class="card glass-card">
           <div class="table-container">
             <table id="table-thay-doi-real">
-              <thead>
-                <tr>
-                  <th>MSHS</th>
-                  <th>Họ tên</th>
-                  <th>Lớp</th>
-                  <th>HP</th>
-                  <th>Thay đổi</th>
-                  <th>Ghi chú</th>
-                </tr>
-              </thead>
+              <thead><tr><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP</th><th>Thay đổi</th><th>Ghi chú</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -517,12 +458,10 @@
       </div>
 
       <div class="action-panel mt-4">
-        <button id="btn-export-accounting" class="btn btn-primary">
-          📥 Xuất Excel Báo cáo Kế toán
-        </button>
+        <button id="btn-export-accounting" class="btn btn-primary">📥 Xuất Excel Báo cáo Kế toán</button>
       </div>
       <div class="text-sm text-secondary mt-2" style="text-align:center;">
-        File xuất gồm 3 sheet: <b>Thực Tế</b> (tất cả HS) → <b>Danh sách viết HĐ</b> (HS đã tick ☑️) → <b>Bảng thay đổi</b> (so với tháng trước)
+        File xuất gồm 4 sheet: <b>Thực Tế</b> → <b>DS Ghi HĐ</b> → <b>Thay đổi HĐ</b> → <b>Thay đổi DS</b>
       </div>
     </section>
 
