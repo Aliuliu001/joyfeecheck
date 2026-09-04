@@ -1022,7 +1022,7 @@ window.App = {
     
     // Compute the 6-tab comparison
     this.state.accountingData = Accounting.computeInvoiceComparison(
-      prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS
+      prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS, this.state.reportRows
     );
   },
 

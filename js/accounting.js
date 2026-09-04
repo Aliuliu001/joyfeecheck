@@ -34,7 +34,7 @@ window.Accounting = {
    * @param {Map} vtbAmountByMSHS - MSHS → total VTB CK amount this month
    * @returns {Object} { tab1, tab2, tab3, tab4, tab5, tab6 }
    */
-  computeInvoiceComparison(prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS) {
+  computeInvoiceComparison(prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS, reportRows) {
     const prevMSHS = (prevInvoiceStudents || []).map(s => typeof s === 'string' ? s : s.mshs).filter(Boolean);
     const prevSet = new Set(prevMSHS);
     const tab2Set = vtbMatchedMSHS || new Set();
@@ -108,19 +108,41 @@ window.Accounting = {
     // Tab 5: Tăng mới = Tab2 - Tab1
     const tab5 = tab2.filter(r => !prevSet.has(r.mshs));
 
-    // Tab 6: Chuyển tiền sai = Tab2 students where VTB CK amount ≠ HP
+    // Tab 6: Chuyển tiền sai — compare allocated payment vs HP (after family split)
+    // Build allocated amounts map from report rows
+    const allocatedByMSHS = new Map();
+    (reportRows || []).forEach(r => {
+      allocatedByMSHS.set(r.mshs, {
+        allocated: r.tongDaDong || 0,
+        hocPhi: r.tongHocPhi || 0
+      });
+    });
     const vtbAmt = vtbAmountByMSHS || new Map();
     const tab6 = tab2.filter(r => {
+      const alloc = allocatedByMSHS.get(r.mshs);
+      if (alloc) {
+        // Use allocated amount (after family split)
+        return alloc.hocPhi > 0 && alloc.allocated > 0 && alloc.allocated !== alloc.hocPhi;
+      }
+      // Fallback: no report row, use raw VTB amount
       const ck = vtbAmt.get(r.mshs) || 0;
       const hp = Number(r.hocPhi) || 0;
       return hp > 0 && ck > 0 && ck !== hp;
     }).map(r => {
-      const ck = vtbAmt.get(r.mshs) || 0;
-      const hp = Number(r.hocPhi) || 0;
+      const alloc = allocatedByMSHS.get(r.mshs);
+      let ck, hp;
+      if (alloc) {
+        ck = alloc.allocated;
+        hp = alloc.hocPhi;
+      } else {
+        ck = vtbAmt.get(r.mshs) || 0;
+        hp = Number(r.hocPhi) || 0;
+      }
       const chenh = ck - hp;
       return {
         ...r,
         ckAmount: ck,
+        hocPhi: hp,
         chenhLech: chenh,
         lyDo: chenh < 0 ? `Thiếu ${Utils.formatCurrency(-chenh)}` : `Dư ${Utils.formatCurrency(chenh)}`
       };
