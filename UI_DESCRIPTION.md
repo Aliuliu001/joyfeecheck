@@ -1,5 +1,66 @@
 # Joy Fee Check — UI/Layout Mô Tả Chi Tiết
-## Dùng làm prompt cho Google AI Studio thiết kế lại giao diện theo phong cách Apple
+## Prompt cho Google AI Studio — Redesign theo phong cách Apple Flat + Alpine.js
+
+---
+
+## 0. YÊU CẦU KỸ THUẬT (QUAN TRỌNG — Google AI Studio PHẢI tuân theo)
+
+### Framework: Alpine.js
+- **BẮT BUỘC** dùng Alpine.js (https://alpinejs.dev/) cho reactive state
+- CDN: `<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>`
+- KHÔNG dùng React, Vue, Angular — KHÔNG cần build step, KHÔNG cần npm
+- Deploy trực tiếp lên GitHub Pages (static HTML files)
+- Alpine.js viết trực tiếp trong HTML qua `x-data`, `x-show`, `x-for`, `@click`, `x-model`
+
+### Excel Export: SheetJS
+- GIỮ NGUYÊN SheetJS (XLSX) cho xuất Excel — KHÔNG thay thế
+- CDN: `<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>`
+
+### Output format
+- Google AI Studio phải output: HTML file + CSS file + JS file riêng
+- Mỗi tab = 1 section trong HTML (không SPA router)
+- Tất cả functions hiện tại (matching, export, backup...) PHẢI giữ nguyên logic
+
+### Backend: GitHub Pages (static only)
+- KHÔNG có server/backend
+- Dữ liệu lưu trên localStorage + file Excel import
+- Service Worker: KHÔNG cần
+
+---
+
+## 0B. PHONG CÁCH THIẾT KẾ: APPLE FLAT (apple.com/vn)
+
+### Design Principles
+- **Flat design**: KHÔNG glassmorphism, KHÔNG gradient phức tạp, KHÔNG shadow lớn
+- **Clean white background** với sections xen kẽ `#f5f5f7` (xám nhạt Apple)
+- **Typography**: San Francisco / Inter, heading lớn bold, body text nhẹ
+- **Whitespace rộng**: padding 24-48px giữa các sections, 16-24px giữa cards
+- **Border-radius**: 12-16px cho cards, 8px cho buttons, 20px cho pills
+- **Color palette Apple-like**:
+  - Background: `#ffffff` (white), `#f5f5f7` (light gray sections)
+  - Text chính: `#1d1d1f` (gần đen)
+  - Text phụ: `#86868b` (xám)
+  - Accent Blue: `#0071e3` (Apple blue — buttons, links)
+  - Success: `#34c759` (Apple green)
+  - Error: `#ff3b30` (Apple red)
+  - Warning: `#ff9500` (Apple orange)
+  - Info: `#5ac8fa` (Apple light blue)
+  - Purple: `#af52de`
+- **Icons**: SF Symbols style hoặc Lucide/Phosphor icons (thay emoji hiện tại)
+- **Shadows**: rất nhẹ (0 1px 3px rgba(0,0,0,0.08)) hoặc KHÔNG shadow
+- **Animations**: smooth 0.3s ease, subtle hover (scale 1.02 cho cards)
+- **Dark mode**: KHÔNG — giữ light theme Apple
+
+### Component Redesign Reference
+- **Cards**: Nền trắng, border-radius 16px, shadow cực nhẹ, padding 24px
+- **Buttons Primary**: Nền `#0071e3`, text trắng, border-radius 980px (pill), padding 12px 24px
+- **Buttons Secondary**: Nền transparent, border 1px solid `#d2d2d7`, text `#1d1d1f`
+- **Tables**: không viền, header background `#f5f5f7`, rows separator 1px `#d2d2d7`
+- **Inputs**: border-radius 8px, border 1px `#d2d2d7`, padding 10px 14px
+- **Tabs**: horizontal pill buttons, active = filled `#0071e3`, inactive = text only
+- **Badges**: pill shape, background theo type, text trắng
+- **Toast**: top-right corner, slide down animation, background theo type
+- **Drop zones**: dashed border `#d2d2d7`, hover = solid `#0071e3`
 
 ---
 
@@ -11,7 +72,8 @@
 - Xuất báo cáo kế toán cho giám đốc
 
 **URL:** https://aliuliu001.github.io/joyfeecheck/
-**Công nghệ:** Vanilla HTML/CSS/JavaScript + SheetJS (xuất Excel)
+**Công nghệ:** Alpine.js (CDN) + SheetJS (xuất Excel) + Vanilla CSS
+**Cổng:** GitHub Pages (static, không backend)
 **Ngôn ngữ:** Tiếng Việt throughout
 
 ---
@@ -424,25 +486,35 @@
 
 ---
 
-## 13. YÊU CẦU THIẾT KẾ LẠI (APPLE STYLE)
+## 13. YÊU CẦU THIẾT KẾ LẠI
 
-**Phong cách Apple (apple.com/vn):**
-- Nền sáng hoặc gradient nhẹ (không phải dark theme)
-- Font: SF Pro Display hoặc Inter với weight nhẹ nhàng hơn
-- Lots of white space (khoảng cách rộng rãi)
-- Cards: background trắng, shadow nhẹ, border-radius lớn (16-20px)
-- Buttons: rounded, subtle gradients, hover animations mượt
-- Typography: heading lớn bold, body text nhẹ
-- Color palette: đơn giản, accent màu xanh dương Apple-like
-- Animations: smooth transitions 0.3s, subtle hover effects
-- Icons: SF Symbols style hoặc Lucide/Phosphor icons (thay emoji)
-- Grid spacing: 24-32px giữa các cards
-- Overall feel: sạch sẽ, chuyên nghiệp, premium
+**Phong cách: Apple Flat (apple.com/vn) + Alpine.js**
 
-**Lưu ý khi thiết kế lại:**
-1. Giữ nguyên 6 tabs và chức năng
-2. Giữ nguyên tất cả data flow (import → match → report → accounting)
-3. Có thể thay đổi visual layout nhưng phải giữ logic hiển thị
-4. Responsive: phải hoạt động tốt trên mobile
-5. Accessibility: sufficient contrast ratios
-6. Export Excel: format output giữ nguyên (header công ty, chữ ký, etc.)
+### Google AI Studio cần output:
+1. **`index.html`** — Alpine.js `x-data` cho toàn app state, `x-show` cho tab switching, `x-for` cho dynamic tables
+2. **`css/style.css`** — Flat design Apple-like (xem section 0B ở trên)
+3. **`js/app.js`** — Alpine.js store/component definitions
+4. **Giữ nguyên** `js/matcher.js`, `js/reporter.js`, `js/accounting.js`, `js/exporter.js`, `js/storage.js`, `js/importer.js`, `js/datamodel.js`, `js/utils.js` — KHÔNG sửa logic
+
+### Alpine.js Structure Example:
+```html
+<body x-data="joyFeeCheck()">
+  <nav><!-- tab buttons with @click="switchTab('import')" --></nav>
+  <main>
+    <section x-show="currentTab === 'import'">
+      <!-- Import content -->
+    </section>
+    <section x-show="currentTab === 'report'">
+      <!-- Report content with x-for for table rows -->
+    </section>
+  </main>
+</body>
+```
+
+### Constraints:
+1. **KHÔNG thay đổi logic** — chỉ redesign visual/UI
+2. **Responsive**: mobile-first, hoạt động tốt trên điện thoại
+3. **Accessibility**: sufficient contrast, semantic HTML
+4. **Deploy**: GitHub Pages (static files, không build step)
+5. **Giữ nguyên tất cả features**: import, matching, report, accounting 7 tabs, backup/restore, export Excel
+6. **Tab 7 Tổng hợp** giữ nguyên: checkbox, edit HP, sort dropdown, tag filter, auto-sum
