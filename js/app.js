@@ -1650,6 +1650,27 @@ window.App = {
     this._renderAccTab7();
   },
 
+  accTab7SortChange: function(sort) {
+    this.state.accTab7Sort = sort;
+    this._renderAccTab7();
+  },
+
+  accTab7ToggleRow: function(mshs, included) {
+    const row = this.state.accTab7Rows.find(r => r.mshs === mshs);
+    if (row) {
+      row.included = included;
+      this._renderAccTab7();
+    }
+  },
+
+  accTab7EditHP: function(mshs, value) {
+    const row = this.state.accTab7Rows.find(r => r.mshs === mshs);
+    if (row) {
+      row.hocPhi = Number(value) || 0;
+      this._renderAccTab7();
+    }
+  },
+
 
 
   toggleSyncStatus: function(idx, checked) {
