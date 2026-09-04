@@ -391,7 +391,17 @@ window.App = {
 
       // 4. Generate report
       this.state.reportRows = Reporter.generateReport(this.state.students, paymentsByMSHS, familyGroups, this.state.monthYear || '');
-      const stats = Reporter.getStatistics(this.state.reportRows);
+
+      // Filter out suspended students for stats + table display
+      const monthYear = this.state.monthYear || '';
+      const suspended = Storage.getSuspendedForMonth(monthYear);
+      const suspendedSet = new Set(suspended.map(s => `${s.mshs}_${s.className}`));
+      const visibleRows = this.state.reportRows.filter(r => {
+        const classes = r.className ? r.className.split(',').map(c => c.trim()) : [];
+        return classes.some(c => !suspendedSet.has(`${r.mshs}_${c}`));
+      });
+
+      const stats = Reporter.getStatistics(visibleRows);
 
       // 5. Generate accounting — DS Master Tổng
       this.state.thucTeRows = Accounting.generateThucTe(this.state.students);
