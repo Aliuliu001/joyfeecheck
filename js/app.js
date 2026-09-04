@@ -2731,10 +2731,9 @@ window.App = {
     );
   },
 
-  // Tạm ngưng nhanh tất cả HS chưa đóng
+  // Tạm ngưng HS chưa đóng — hiện danh sách có checkbox để chọn
   suspendUnpaidStudents: function() {
     const monthYear = this.state.monthYear || '';
-    const students = this.state.students || [];
     const suspended = Storage.getSuspendedForMonth(monthYear);
     const suspendedSet = new Set(suspended.map(s => `${s.mshs}_${s.className}`));
 
@@ -2750,37 +2749,60 @@ window.App = {
       return;
     }
 
-    // Confirm
-    const names = unpaid.map(r => `${r.mshs} - ${r.fullName}`).join('\n');
+    // Build checkbox list
+    const rowsHtml = unpaid.map((r, idx) => {
+      const classes = r.className ? r.className.split(',').map(c => c.trim()) : [];
+      const available = classes.filter(c => !suspendedSet.has(`${r.mshs}_${c}`));
+      return `<tr>
+        <td><input type="checkbox" class="sus-check" data-mshs="${r.mshs}" data-name="${r.fullName}" data-classes='${JSON.stringify(available)}' checked></td>
+        <td>${r.mshs}</td>
+        <td>${r.fullName}</td>
+        <td>${available.join(', ')}</td>
+      </tr>`;
+    }).join('');
+
     Utils.showModal(
-      `⏸️ Tạm ngưng ${unpaid.length} HS chưa đóng?`,
-      `<p>Các HS sau sẽ bị tạm ngưng tháng này:</p>
-       <div style="max-height:200px; overflow-y:auto; background:var(--bg-secondary); padding:8px; border-radius:var(--radius-sm); font-size:0.85rem;">
-         ${unpaid.map(r => `<div>• ${r.mshs} — ${r.fullName} (${r.className})</div>`).join('')}
+      `📋 DS Chưa đóng → Tạm ngưng (${unpaid.length} HS)`,
+      `<p>Chọn HS cần tạm ngưng (bỏ tick HS nào chỉ đóng chậm):</p>
+       <div style="margin-bottom:8px;">
+         <label style="cursor:pointer; font-size:13px;"><input type="checkbox" id="sus-check-all" checked onchange="App.toggleAllSusCheck(this.checked)"> <strong>Chọn tất cả</strong></label>
        </div>
-       <p class="mt-2 text-sm text-secondary">Lý do: Chưa đóng học phí tháng này</p>`,
+       <div style="max-height:300px; overflow-y:auto;">
+         <table class="compact-table" style="width:100%"><thead><tr><th style="width:40px"></th><th>MSHS</th><th>Họ tên</th><th>Lớp</th></tr></thead>
+         <tbody>${rowsHtml}</tbody></table>
+       </div>
+       <p class="mt-2 text-sm text-secondary">Lý do sẽ tự ghi: "Chưa đóng HP — tháng ${monthYear}"</p>`,
       () => {
+        const checks = document.querySelectorAll('.sus-check:checked');
+        if (checks.length === 0) {
+          Utils.showToast('Chưa chọn HS nào', 'warning');
+          return false;
+        }
         let count = 0;
-        unpaid.forEach(r => {
-          const classes = r.className ? r.className.split(',').map(c => c.trim()) : [];
+        checks.forEach(cb => {
+          const mshs = cb.dataset.mshs;
+          const name = cb.dataset.name;
+          const classes = JSON.parse(cb.dataset.classes);
           classes.forEach(c => {
-            if (!suspendedSet.has(`${r.mshs}_${c}`)) {
-              Storage.addSuspended({
-                mshs: r.mshs,
-                studentName: r.fullName,
-                className: c,
-                monthYear,
-                note: 'Chưa đóng HP — tự chuyển'
-              });
-              count++;
-            }
+            Storage.addSuspended({
+              mshs,
+              studentName: name,
+              className: c,
+              monthYear,
+              note: `Chưa đóng HP — tháng ${monthYear}`
+            });
+            count++;
           });
         });
-        Utils.showToast(`Đã tạm ngưng ${count} lớp của ${unpaid.length} HS chưa đóng`, 'success');
+        Utils.showToast(`Đã tạm ngưng ${count} lớp của ${checks.length} HS`, 'success');
         this.renderSuspendedTable();
         this.runMatchingBackground();
       }
     );
+  },
+
+  toggleAllSusCheck: function(checked) {
+    document.querySelectorAll('.sus-check').forEach(cb => { cb.checked = checked; });
   },
 
   // ========================
