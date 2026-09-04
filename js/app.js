@@ -1642,7 +1642,7 @@ window.App = {
       return;
     }
     const monthYear = document.getElementById('month-selector')?.value || '';
-    Exporter.exportBaoCaoKeToan(data, monthYear, this.state.accTab7Rows);
+    Exporter.exportBaoCaoKeToan(data, monthYear, this.state.accTab7Rows, this.state.accTab7FilterTags);
     Utils.showToast('Đã xuất file Báo cáo Kế toán', 'success');
   },
 
@@ -1674,7 +1674,7 @@ window.App = {
       Utils.showToast('Tab này không có dữ liệu để xuất', 'info');
       return;
     }
-    Exporter.exportAccTabSingle(tabNum, rows, tabNames[tabNum] || `Tab ${tabNum}`, monthYear);
+    Exporter.exportAccTabSingle(tabNum, rows, tabNames[tabNum] || `Tab ${tabNum}`, monthYear, tabNum === 7 ? this.state.accTab7FilterTags : null);
     Utils.showToast(`Đã xuất Excel: ${tabNames[tabNum]} (${rows.length} HS)`, 'success');
   },
 

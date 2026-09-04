@@ -222,7 +222,8 @@ window.Exporter = {
   /**
    * Export a single accounting sub-tab as Excel
    */
-  exportAccTabSingle: function(tabNum, rows, tabTitle, monthYear) {
+  exportAccTabSingle: function(tabNum, rows, tabTitle, monthYear, filterTags) {
+    // filterTags: null = show all, Set = only these tags for tab 7 ghiChu
     const wb = XLSX.utils.book_new();
     const monthLabel = (monthYear || '').includes('-')
       ? monthYear.split('-').reverse().join('.')
@@ -251,8 +252,12 @@ window.Exporter = {
     rows.forEach((r, idx) => {
       let row;
       if (isTab7) {
-        // Tab 7: STT, MSHS, Lớp, Họ tên, Giáo viên, Học phí, Địa chỉ, Ghi chú
-        row = [idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', r.ghiChu || ''];
+        // Tab 7: filter ghiChu by active tags
+        let ghiChu = r.ghiChu || '';
+        if (filterTags && ghiChu) {
+          ghiChu = ghiChu.split(', ').filter(t => filterTags.has(t)).join(', ');
+        }
+        row = [idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', ghiChu];
       } else {
         row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
         if (isTab6) {
@@ -275,6 +280,26 @@ window.Exporter = {
     this.autoFitColumns(ws, null, headers);
     XLSX.utils.book_append_sheet(wb, ws, tabTitle.substring(0, 31));
 
+    // Tab 7: add DS HS Master sheet
+    if (isTab7) {
+      const students = window.App?.state?.students || [];
+      if (students.length > 0) {
+        const masterHdrs = ['MSHS', 'Họ tên', 'Lớp', 'Giáo viên', 'Học phí', 'Địa chỉ', 'SĐT PH'];
+        const masterAoa = [
+          ['DANH SÁCH HỌC SINH TỔNG'],
+          [`Tháng ${monthLabel}`],
+          [],
+          masterHdrs
+        ];
+        students.forEach(s => {
+          masterAoa.push([s.mshs || '', s.fullName || '', s.className || '', s.teacher || '', s.hocPhi || 0, s.diaChi || '', s.phone || '']);
+        });
+        const wsMaster = XLSX.utils.aoa_to_sheet(masterAoa);
+        this.autoFitColumns(wsMaster, null, masterHdrs);
+        XLSX.utils.book_append_sheet(wb, wsMaster, 'DS HS Master');
+      }
+    }
+
     const safeTitle = tabTitle.replace(/[^a-zA-Z0-9\u00C0-\u024F]/g, '_');
     const filename = `KeToan_${safeTitle}_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
@@ -283,7 +308,7 @@ window.Exporter = {
   /**
    * Export accounting report (7-tab comparison)
    */
-  exportBaoCaoKeToan: function(data, monthYear, accTab7Rows) {
+  exportBaoCaoKeToan: function(data, monthYear, accTab7Rows, filterTags) {
     const wb = XLSX.utils.book_new();
     const monthLabel = (monthYear || '').includes('-')
       ? monthYear.split('-').reverse().join('.')
@@ -373,7 +398,11 @@ window.Exporter = {
         hdrs7
       ];
       accTab7Rows.forEach((r, idx) => {
-        aoa7.push([idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', r.ghiChu || '']);
+        let ghiChu = r.ghiChu || '';
+        if (filterTags && ghiChu) {
+          ghiChu = ghiChu.split(', ').filter(t => filterTags.has(t)).join(', ');
+        }
+        aoa7.push([idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', ghiChu]);
       });
       XLSX.utils.book_append_sheet(wb,
         createSheet(aoa7, hdrs7),
