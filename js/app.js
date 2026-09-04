@@ -334,11 +334,15 @@ window.App = {
   // FILTERS
   // ========================
   setupFilters: function() {
-    const applyFilters = Utils.debounce(() => this.applyReportFilters(), 300);
+    const applyFilters = Utils.debounce(() => this.applyReportFilters(), 200);
     document.getElementById('filter-status')?.addEventListener('change', applyFilters);
     document.getElementById('filter-class')?.addEventListener('change', applyFilters);
     document.getElementById('filter-teacher')?.addEventListener('change', applyFilters);
     document.getElementById('search-report')?.addEventListener('input', applyFilters);
+    // Fix: re-apply on mousedown so clicking same option again works
+    document.getElementById('filter-status')?.addEventListener('mousedown', () => {
+      setTimeout(() => this.applyReportFilters(), 50);
+    });
   },
 
   applyReportFilters: function() {
@@ -2658,6 +2662,58 @@ window.App = {
         });
 
         Utils.showToast(`Đã tạm ngưng ${fullName} - lớp ${className}`, 'success');
+        this.renderSuspendedTable();
+        this.runMatchingBackground();
+      }
+    );
+  },
+
+  // Tạm ngưng nhanh tất cả HS chưa đóng
+  suspendUnpaidStudents: function() {
+    const monthYear = this.state.monthYear || '';
+    const students = this.state.students || [];
+    const suspended = Storage.getSuspendedForMonth(monthYear);
+    const suspendedSet = new Set(suspended.map(s => `${s.mshs}_${s.className}`));
+
+    // Find unpaid students not yet suspended
+    const unpaid = (this.state.reportRows || []).filter(r => {
+      if (r.trangThai !== APP_CONFIG.STATUS.UNPAID) return false;
+      const classes = r.className ? r.className.split(',').map(c => c.trim()) : [];
+      return classes.some(c => !suspendedSet.has(`${r.mshs}_${c}`));
+    });
+
+    if (unpaid.length === 0) {
+      Utils.showToast('Không có HS "Chưa đóng" nào cần tạm ngưng', 'info');
+      return;
+    }
+
+    // Confirm
+    const names = unpaid.map(r => `${r.mshs} - ${r.fullName}`).join('\n');
+    Utils.showModal(
+      `⏸️ Tạm ngưng ${unpaid.length} HS chưa đóng?`,
+      `<p>Các HS sau sẽ bị tạm ngưng tháng này:</p>
+       <div style="max-height:200px; overflow-y:auto; background:var(--bg-secondary); padding:8px; border-radius:var(--radius-sm); font-size:0.85rem;">
+         ${unpaid.map(r => `<div>• ${r.mshs} — ${r.fullName} (${r.className})</div>`).join('')}
+       </div>
+       <p class="mt-2 text-sm text-secondary">Lý do: Chưa đóng học phí tháng này</p>`,
+      () => {
+        let count = 0;
+        unpaid.forEach(r => {
+          const classes = r.className ? r.className.split(',').map(c => c.trim()) : [];
+          classes.forEach(c => {
+            if (!suspendedSet.has(`${r.mshs}_${c}`)) {
+              Storage.addSuspended({
+                mshs: r.mshs,
+                studentName: r.fullName,
+                className: c,
+                monthYear,
+                note: 'Chưa đóng HP — tự chuyển'
+              });
+              count++;
+            }
+          });
+        });
+        Utils.showToast(`Đã tạm ngưng ${count} lớp của ${unpaid.length} HS chưa đóng`, 'success');
         this.renderSuspendedTable();
         this.runMatchingBackground();
       }
