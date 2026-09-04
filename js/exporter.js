@@ -302,8 +302,7 @@ window.Exporter = {
         aoa.push([idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', ghiChu]);
         totalHP += (r.hocPhi || 0);
       });
-      // Total row
-      const dataEndRow = aoa.length; // last data row number in Excel
+      // Total row: TỔNG CỘNG in col D, total in col E (not F, to avoid sum/subtotal issues)
       aoa.push(['', '', '', 'TỔNG CỘNG', totalHP, '', '', '']);
       // Empty row
       aoa.push([]);
@@ -370,7 +369,7 @@ window.Exporter = {
             });
           }
         });
-        const masterHdrs = ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'SĐT PH'];
+        const masterHdrs = ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'Ghi chú'];
         const masterAoa = [
           ['DANH SÁCH HỌC SINH TỔNG'],
           [`Tháng ${monthLabel} (${mergedMap.size} HS)`],
@@ -379,7 +378,7 @@ window.Exporter = {
         ];
         let stt = 1;
         mergedMap.forEach(s => {
-          masterAoa.push([stt++, s.mshs, s.classes.join(', '), s.fullName, s.teacher, s.hocPhi, s.diaChi, s.phone]);
+          masterAoa.push([stt++, s.mshs, s.classes.join(', '), s.fullName, s.teacher, s.hocPhi, s.diaChi, '']);
         });
         const wsMaster = XLSX.utils.aoa_to_sheet(masterAoa);
         this.autoFitColumns(wsMaster, null, masterHdrs);
