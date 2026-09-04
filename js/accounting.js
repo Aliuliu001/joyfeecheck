@@ -139,12 +139,15 @@ window.Accounting = {
         hp = Number(r.hocPhi) || 0;
       }
       const chenh = ck - hp;
+      // Get txList from report rows for Nguon CK
+      const reportRow = (reportRows || []).find(rr => rr.mshs === r.mshs);
       return {
         ...r,
         ckAmount: ck,
         hocPhi: hp,
         chenhLech: chenh,
-        lyDo: chenh < 0 ? `Thiếu ${Utils.formatCurrency(-chenh)}` : `Dư ${Utils.formatCurrency(chenh)}`
+        lyDo: chenh < 0 ? `Thiếu ${Utils.formatCurrency(-chenh)}` : `Dư ${Utils.formatCurrency(chenh)}`,
+        txList: reportRow ? reportRow.txList : []
       };
     });
 

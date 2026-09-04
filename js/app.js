@@ -603,11 +603,8 @@ window.App = {
     // Filter newSTKs to exclude skipped
     newSTKs = newSTKs.filter(s => !skippedSTKSet.has(s.stk));
     
-    // Filter unmatchedTPB to exclude skipped
-    unmatchedTPB = (unmatchedTPB || []).filter(t => {
-      const key = `${t.date}_${t.credit}_${t.explanation}`;
-      return !skippedTPBSet.has(key);
-    });
+    // Filter unmatchedTPB to exclude skipped (use state directly)
+    // unmatchedTPB is already filtered in skipTPB, no need to filter again
 
     // New STKs
     const stkTbody = document.querySelector('#table-unmapped-stk tbody');
@@ -642,7 +639,7 @@ window.App = {
       if (stkCount) stkCount.textContent = newSTKs.length;
     }
 
-    // Unmatched TPBank
+    // Unmatched TPBank — use state directly (already filtered in skipTPB)
     const tpbTbody = document.querySelector('#table-unidentified-tpb tbody');
     const tpbCount = document.getElementById('unidentified-tpb-count');
     if (tpbTbody) {
@@ -650,6 +647,7 @@ window.App = {
         tpbTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary)">Không có giao dịch chưa xác định</td></tr>';
       } else {
         tpbTbody.innerHTML = unmatchedTPB.map((t, idx) => {
+          const txKey = `${t.date}_${t.credit}_${t.explanation}`;
           const suggestions = Matcher.suggestMatch(t, this.state.students);
           const suggestText = suggestions.length > 0
             ? suggestions.map(sg => `${sg.mshs} - ${sg.studentName} (${Math.round(sg.score * 100)}%)`).join('<br>')
@@ -662,7 +660,7 @@ window.App = {
             <td>
               <button class="btn btn-sm btn-primary" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', false)">Gán MSHS</button>
               <button class="btn btn-sm btn-warning" onclick="App.assignTPBToMSHS(${idx}, '${(suggestions[0]?suggestions[0].mshs:'').replace(/'/g, "\\'")}', '${(suggestions[0]?suggestions[0].studentName:'').replace(/'/g, "\\'")}', true)">📅 Tháng trước</button>
-              <button class="btn btn-sm btn-outline" onclick="App.skipTPB('${t.date}_${t.credit}_${t.explanation}')">Bỏ qua</button>
+              <button class="btn btn-sm btn-outline" onclick="App.skipTPB('${txKey}')">Bỏ qua</button>
             </td>
           </tr>`;
         }).join('');
@@ -1309,15 +1307,29 @@ window.App = {
       container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Không có HS nào CK sai tiền.</p>';
       return;
     }
-    let html = '<div class="table-container"><table id="table-acc-tab6"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP quy định</th><th>Số tiền CK</th><th>Chênh lệch</th></tr></thead><tbody>';
+    let html = '<div class="table-container"><table id="table-acc-tab6"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP quy định</th><th>Số tiền CK</th><th>Chênh lệch</th><th>Nguồn CK</th></tr></thead><tbody>';
     data.tab6.forEach((r, idx) => {
       const chenhLech = (r.ckAmount || 0) - (r.hocPhi || 0);
       const cls = chenhLech > 0 ? 'dư' : 'thieu';
+      // Render Nguồn CK similar to main report
+      const txList = r.txList || [];
+      let nguonCK = '';
+      if (txList.length > 0) {
+        const sourceLabels = { vtb: '🏦 VTB', tpb: '🏦 TPB', cash: '💵 TM' };
+        nguonCK = txList.map(tx => {
+          let label = `${sourceLabels[tx.type] || tx.type}: ${Utils.formatCurrency(tx.amount)}`;
+          if (tx.type === 'vtb' && tx.tenChuTK) label += ` (${tx.tenChuTK})`;
+          return label;
+        }).join('<br>');
+      } else {
+        nguonCK = '<span class="text-secondary">—</span>';
+      }
       html += `<tr>
         <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
         <td class="number">${Utils.formatCurrency(r.ckAmount)}</td>
         <td class="number ${cls}">${chenhLech > 0 ? '+' : ''}${Utils.formatCurrency(chenhLech)}</td>
+        <td class="text-sm">${nguonCK}</td>
       </tr>`;
     });
     html += '</tbody></table></div>';
