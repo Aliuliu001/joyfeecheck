@@ -1495,7 +1495,22 @@ window.App = {
       return;
     }
     const tagMap = { 1: 'DS HĐ tháng trước', 2: 'DS CK VTB', 3: 'Giảm bớt', 4: 'Stop - nghỉ học', 5: 'Tăng thêm', 6: 'CK sai tiền' };
-    const masterMap = new Map((this.state.students || []).map(s => [s.mshs, s]));
+    // Build master map: collect ALL classes + teacher + diaChi per MSHS
+    const masterAllClasses = new Map(); // mshs → { fullName, classes: Set, teacher, hocPhi, diaChi }
+    for (const s of (this.state.students || [])) {
+      const m = masterAllClasses.get(s.mshs);
+      if (m) {
+        if (s.className) m.classes.add(s.className);
+      } else {
+        masterAllClasses.set(s.mshs, {
+          fullName: s.fullName || '',
+          classes: new Set(s.className ? [s.className] : []),
+          teacher: s.teacher || '',
+          hocPhi: Number(s.hocPhi) || 0,
+          diaChi: s.diaChi || ''
+        });
+      }
+    }
     const existingMshs = new Map(this.state.accTab7Rows.map(r => [r.mshs, r]));
     let added = 0;
     for (const r of sourceRows) {
@@ -1507,14 +1522,20 @@ window.App = {
         }
       }
       const tagStr = tags.join(', ');
-      const master = masterMap.get(r.mshs) || {};
+      const master = masterAllClasses.get(r.mshs) || {};
+      // Merge all classes from master (not just the one from source tab)
+      const allClasses = master.classes ? [...master.classes] : (r.className ? [r.className] : []);
       if (existingMshs.has(r.mshs)) {
         existingMshs.get(r.mshs).ghiChu = tagStr;
+        // Update class if master has more classes
+        if (allClasses.length > 1) {
+          existingMshs.get(r.mshs).className = allClasses.join(', ');
+        }
       } else {
         this.state.accTab7Rows.push({
           mshs: r.mshs,
           fullName: r.fullName || master.fullName || '',
-          className: r.className || master.className || '',
+          className: allClasses.join(', ') || r.className || '',
           hocPhi: r.hocPhi || master.hocPhi || 0,
           teacher: master.teacher || '',
           diaChi: master.diaChi || '',

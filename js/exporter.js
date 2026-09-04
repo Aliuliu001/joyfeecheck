@@ -306,15 +306,16 @@ window.Exporter = {
             });
           }
         });
-        const masterHdrs = ['MSHS', 'Họ tên', 'Lớp', 'Giáo viên', 'Học phí', 'Địa chỉ', 'SĐT PH'];
+        const masterHdrs = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Giáo viên', 'Học phí', 'Địa chỉ', 'SĐT PH'];
         const masterAoa = [
           ['DANH SÁCH HỌC SINH TỔNG'],
           [`Tháng ${monthLabel} (${mergedMap.size} HS)`],
           [],
           masterHdrs
         ];
+        let stt = 1;
         mergedMap.forEach(s => {
-          masterAoa.push([s.mshs, s.fullName, s.classes.join(', '), s.teacher, s.hocPhi, s.diaChi, s.phone]);
+          masterAoa.push([stt++, s.mshs, s.fullName, s.classes.join(', '), s.teacher, s.hocPhi, s.diaChi, s.phone]);
         });
         const wsMaster = XLSX.utils.aoa_to_sheet(masterAoa);
         this.autoFitColumns(wsMaster, null, masterHdrs);
