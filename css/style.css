@@ -817,6 +817,14 @@ tr.mandatory-row td:first-child input[type="checkbox"]:disabled {
 .compact-table td, .compact-table th {
   padding: 0.4rem 0.6rem;
 }
+/* Address column: wrap text, max-width to prevent overflow */
+.compact-table td:nth-child(7),
+table th:nth-child(7) {
+  max-width: 200px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
 
 /* Status info in settings */
 .status-info p {

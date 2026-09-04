@@ -78,7 +78,7 @@ window.Importer = {
         stkPH: this.findColumnIndex(headers, ['STK_PH', 'STK', 'Số tài khoản']),
         tenTK: this.findColumnIndex(headers, ['Tên TK', 'TenTK', 'Tên tài khoản']),
         hocPhi: this.findColumnIndex(headers, ['Học phí', 'Học Phí', 'HP']),
-        diaChi: this.findColumnIndex(headers, ['Địa chỉ']),
+        diaChi: this.findColumnIndex(headers, ['Địa chỉ', 'Address', 'Dia chi', 'DiaChi']),
         ghiChu: this.findColumnIndex(headers, ['Ghi chú', 'GhiChu'])
       };
 
