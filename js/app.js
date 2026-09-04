@@ -22,7 +22,7 @@ window.App = {
     accountingData: null, // { tab1, tab2, tab3, tab4, tab5, tab6 }
     accTab4Choices: {}, // { mshs: 'nghi' | 'vanhoc' }
     accTab4Confirmed: false,
-    accTab6Rows: [], // accumulated rows from other tabs (each has { source, mshs, fullName, className, hocPhi, ... })
+    accTab7Rows: [], // accumulated rows from other tabs (each has { source, mshs, fullName, className, hocPhi, ... })
     changeRecords: [],
     prevInvoiceStudents: [],
     prevThucTeStudents: [],
@@ -1033,7 +1033,8 @@ window.App = {
     setCount('acc-count-tab3', data.tab3.length);
     setCount('acc-count-tab4', data.tab4.length);
     setCount('acc-count-tab5', data.tab5.length);
-    setCount('acc-count-tab6', this.state.accTab6Rows.length);
+    setCount('acc-count-tab6', (data.tab6 || []).length);
+    setCount('acc-count-tab7', this.state.accTab7Rows.length);
     
     // Render Tab 1: DS HĐ Tháng trước
     this._renderAccTable('table-acc-tab1', data.tab1, (r, idx) => `
@@ -1082,8 +1083,11 @@ window.App = {
       </tr>
     `);
     
-    // Render Tab 6: Tổng hợp (dynamic)
+    // Render Tab 6: Chuyển tiền sai
     this._renderAccTab6();
+
+    // Render Tab 7: Tổng hợp (dynamic)
+    this._renderAccTab7();
   },
   
   _renderAccTable: function(tableId, rows, rowRenderer) {
@@ -1260,9 +1264,35 @@ window.App = {
   },
 
   // ========================
-  // ACCOUNTING TAB 6: Tổng hợp — copy from other tabs
+  // ACCOUNTING TAB 6: Chuyển tiền sai
   // ========================
-  copyToAccTab6: function(fromTab) {
+  _renderAccTab6: function() {
+    const container = document.getElementById('acc-tab6-body');
+    if (!container) return;
+    const data = this.state.accountingData;
+    if (!data || !data.tab6 || data.tab6.length === 0) {
+      container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Không có HS nào CK sai tiền.</p>';
+      return;
+    }
+    let html = '<div class="table-container"><table id="table-acc-tab6"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP quy định</th><th>Số tiền CK</th><th>Chênh lệch</th></tr></thead><tbody>';
+    data.tab6.forEach((r, idx) => {
+      const chenhLech = (r.ckAmount || 0) - (r.hocPhi || 0);
+      const cls = chenhLech > 0 ? 'dư' : 'thieu';
+      html += `<tr>
+        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+        <td class="number">${Utils.formatCurrency(r.ckAmount)}</td>
+        <td class="number ${cls}">${chenhLech > 0 ? '+' : ''}${Utils.formatCurrency(chenhLech)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  },
+
+  // ========================
+  // ACCOUNTING TAB 7: Tổng hợp — copy from other tabs
+  // ========================
+  copyToAccTab7: function(fromTab) {
     const data = this.state.accountingData;
     if (!data) return;
     const tabKey = 'tab' + fromTab;
@@ -1271,13 +1301,13 @@ window.App = {
       Utils.showToast(`Tab ${fromTab} không có dữ liệu`, 'info');
       return;
     }
-    const tabNames = { 1: 'DS HĐ tháng trước', 2: 'DS CK VTB', 3: 'Giảm bớt', 4: 'Stop - nghỉ học', 5: 'Tăng mới' };
+    const tabNames = { 1: 'DS HĐ tháng trước', 2: 'DS CK VTB', 3: 'Giảm bớt', 4: 'Stop - nghỉ học', 5: 'Tăng mới', 6: 'Chuyển tiền sai' };
     const sourceLabel = tabNames[fromTab] || `Tab ${fromTab}`;
-    const existingMshs = new Set(this.state.accTab6Rows.map(r => r.mshs));
+    const existingMshs = new Set(this.state.accTab7Rows.map(r => r.mshs));
     let added = 0;
     for (const r of sourceRows) {
       if (!existingMshs.has(r.mshs)) {
-        this.state.accTab6Rows.push({ ...r, source: sourceLabel });
+        this.state.accTab7Rows.push({ ...r, source: sourceLabel });
         existingMshs.add(r.mshs);
         added++;
       }
@@ -1288,17 +1318,17 @@ window.App = {
       : `Tất cả HS từ "${sourceLabel}" đã có trong Tổng hợp`, added > 0 ? 'success' : 'info');
   },
 
-  clearAccTab6: function() {
-    if (this.state.accTab6Rows.length === 0) return;
-    this.state.accTab6Rows = [];
+  clearAccTab7: function() {
+    if (this.state.accTab7Rows.length === 0) return;
+    this.state.accTab7Rows = [];
     this.renderAccountingTabs();
     Utils.showToast('Đã xoá tất cả trong Tổng hợp', 'success');
   },
 
-  _renderAccTab6: function() {
-    const container = document.getElementById('acc-tab6-body');
+  _renderAccTab7: function() {
+    const container = document.getElementById('acc-tab7-body');
     if (!container) return;
-    const rows = this.state.accTab6Rows;
+    const rows = this.state.accTab7Rows;
     if (!rows || rows.length === 0) {
       container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Chưa có dữ liệu. Bấm "📥 Copy sang Tổng hợp" ở tab bên trên.</p>';
       return;
@@ -1360,7 +1390,7 @@ window.App = {
       return;
     }
     const monthYear = document.getElementById('month-selector')?.value || '';
-    Exporter.exportBaoCaoKeToan(data, monthYear);
+    Exporter.exportBaoCaoKeToan(data, monthYear, this.state.accTab7Rows);
     Utils.showToast('Đã xuất file Báo cáo Kế toán', 'success');
   },
 
@@ -1378,12 +1408,13 @@ window.App = {
       3: 'Giảm bớt',
       4: 'Stop - nghỉ học',
       5: 'Tăng mới',
-      6: 'Tổng hợp'
+      6: 'Chuyển tiền sai',
+      7: 'Tổng hợp'
     };
     const tabKey = 'tab' + tabNum;
     let rows;
-    if (tabNum === 6) {
-      rows = this.state.accTab6Rows;
+    if (tabNum === 7) {
+      rows = this.state.accTab7Rows;
     } else {
       rows = data[tabKey] || [];
     }

@@ -271,9 +271,9 @@ window.Exporter = {
   },
 
   /**
-   * Export accounting report (6-tab comparison)
+   * Export accounting report (7-tab comparison)
    */
-  exportBaoCaoKeToan: function(data, monthYear) {
+  exportBaoCaoKeToan: function(data, monthYear, accTab7Rows) {
     const wb = XLSX.utils.book_new();
     const monthLabel = (monthYear || '').includes('-')
       ? monthYear.split('-').reverse().join('.')
@@ -324,10 +324,10 @@ window.Exporter = {
       createSheet(buildAoA('Giảm bớt', data.tab3), headers5),
       '3_Giảm_bớt');
 
-    // Sheet 4: Stop học nghỉ (with reason)
+    // Sheet 4: Stop - nghỉ học (with reason)
     XLSX.utils.book_append_sheet(wb,
-      createSheet(buildAoA('Stop học nghỉ', data.tab4, headers6), headers6),
-      '4_Stop_học_nghỉ');
+      createSheet(buildAoA('Stop - nghỉ học', data.tab4, headers6), headers6),
+      '4_Stop_nghỉ_học');
 
     // Sheet 5: Tăng mới
     XLSX.utils.book_append_sheet(wb,
@@ -352,7 +352,24 @@ window.Exporter = {
         '6_Chuyển_tiền_sai');
     }
 
-    const filename = `BaoCaoKeToan_6Tabs_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
+    // Sheet 7: Tổng hợp
+    if (accTab7Rows && accTab7Rows.length > 0) {
+      const aoa7 = [
+        [APP_CONFIG.COMPANY_NAME],
+        [`BÁO CÁO KẾ TOÁN - Tổng hợp - Tháng ${monthLabel}`],
+        [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
+        [],
+        headers5
+      ];
+      accTab7Rows.forEach((r, idx) => {
+        aoa7.push([idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0]);
+      });
+      XLSX.utils.book_append_sheet(wb,
+        createSheet(aoa7, headers5),
+        '7_Tổng_hợp');
+    }
+
+    const filename = `BaoCaoKeToan_7Tabs_${monthLabel.replace(/[/ ]/g, '_')}.xlsx`;
     this.triggerDownload(wb, filename);
   },
 

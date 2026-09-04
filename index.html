@@ -339,13 +339,14 @@
 
     <!-- TAB: Báo cáo Kế toán (5 sub-tabs) -->
     <section id="accounting-tab" class="tab-content">
-      <div class="sub-tab-bar">
+      <div class="sub-tab-bar" style="flex-wrap: wrap;">
         <button class="sub-tab-btn active" data-subtab="acc-tab1">📋 DS HĐ Tháng trước</button>
         <button class="sub-tab-btn" data-subtab="acc-tab2">🏦 DS CK VTB Tháng này</button>
         <button class="sub-tab-btn" data-subtab="acc-tab3">📉 Giảm bớt</button>
         <button class="sub-tab-btn" data-subtab="acc-tab4">🛑 Stop - nghỉ học</button>
         <button class="sub-tab-btn" data-subtab="acc-tab5">📈 Tăng mới</button>
-        <button class="sub-tab-btn" data-subtab="acc-tab6">📋 Tổng hợp</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab6">⚠️ Chuyển tiền sai</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab7">📋 Tổng hợp</button>
       </div>
 
       <!-- Summary cards -->
@@ -385,11 +386,18 @@
             <span class="card-value" id="acc-count-tab5">0</span>
           </div>
         </div>
+        <div class="summary-card card" style="background: linear-gradient(135deg, #f85149 0%, #d29922 100%);">
+          <div class="card-icon">⚠️</div>
+          <div class="card-info">
+            <span class="card-label">CK sai tiền</span>
+            <span class="card-value" id="acc-count-tab6">0</span>
+          </div>
+        </div>
         <div class="summary-card card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
           <div class="card-icon">📋</div>
           <div class="card-info">
             <span class="card-label">Tổng hợp</span>
-            <span class="card-value" id="acc-count-tab6">0</span>
+            <span class="card-value" id="acc-count-tab7">0</span>
           </div>
         </div>
       </div>
@@ -414,7 +422,7 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
-            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(1)">📥 Copy sang Tổng hợp</button>
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab7(1)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(1)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
@@ -440,7 +448,7 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
-            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(2)">📥 Copy sang Tổng hợp</button>
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab7(2)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(2)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
@@ -467,7 +475,7 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
-            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(3)">📥 Copy sang Tổng hợp</button>
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab7(3)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(3)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
@@ -504,23 +512,37 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
-            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(5)">📥 Copy sang Tổng hợp</button>
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab7(5)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(5)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
       </div>
 
-      <!-- Sub-tab 6: Tổng hợp (collection from other tabs) -->
+      <!-- Sub-tab 6: Chuyển tiền sai -->
       <div id="acc-tab6" class="sub-tab-content">
         <div class="card glass-card mt-4">
-          <h3>📋 Tổng hợp — Tập hợp dữ liệu từ các tab</h3>
-          <p class="text-sm text-secondary mb-2">Bấm "📥 Copy sang Tổng hợp" ở bất kỳ tab nào để đưa dữ liệu vào đây. Dữ liệu copy nguyên bản từ tab gốc.</p>
+          <h3>⚠️ Chuyển tiền sai</h3>
+          <p class="text-sm text-secondary mb-2">Học sinh CK vào TK Công ty VietinBank nhưng số tiền KHÁC với học phí quy định.</p>
           <div id="acc-tab6-body">
             <!-- Rendered by JS -->
           </div>
           <div class="mt-3" style="text-align:right;">
-            <button class="btn btn-sm btn-danger" onclick="App.clearAccTab6()">🗑️ Xoá tất cả</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(6)">📥 Xuất Excel Tab này</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab 7: Tổng hợp (collection from other tabs) -->
+      <div id="acc-tab7" class="sub-tab-content">
+        <div class="card glass-card mt-4">
+          <h3>📋 Tổng hợp — Tập hợp dữ liệu từ các tab</h3>
+          <p class="text-sm text-secondary mb-2">Bấm "📥 Copy sang Tổng hợp" ở bất kỳ tab nào để đưa dữ liệu vào đây.</p>
+          <div id="acc-tab7-body">
+            <!-- Rendered by JS -->
+          </div>
+          <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-danger" onclick="App.clearAccTab7()">🗑️ Xoá tất cả</button>
+            <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(7)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
       </div>
@@ -528,7 +550,7 @@
       <!-- Export all button -->
       <div class="action-panel mt-4" style="flex-direction: row; justify-content: center; gap: 8px; flex-wrap: wrap;">
         <button id="btn-export-accounting" class="btn btn-primary">
-          📥 Xuất tất cả (6 tabs)
+          📥 Xuất tất cả (7 tabs)
         </button>
       </div>
     </section>
@@ -844,6 +866,17 @@
     <div class="spinner"></div>
     <p id="loading-text">Đang xử lý...</p>
   </div>
+
+  <!-- Back to Top Button -->
+  <button id="btn-back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:20px;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.3);transition:opacity .3s;" title="Về đầu trang">⬆</button>
+  <script>
+    (function(){
+      var btn=document.getElementById('btn-back-to-top');
+      window.addEventListener('scroll',function(){
+        btn.style.display=(window.scrollY>300)?'block':'none';
+      });
+    })();
+  </script>
 
   <!-- Scripts -->
   <script src="lib/xlsx.full.min.js"></script>
