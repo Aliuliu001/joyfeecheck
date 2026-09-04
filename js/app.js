@@ -22,6 +22,7 @@ window.App = {
     accountingData: null, // { tab1, tab2, tab3, tab4, tab5, tab6 }
     accTab4Choices: {}, // { mshs: 'nghi' | 'vanhoc' }
     accTab4Confirmed: false,
+    accTab6Rows: [], // accumulated rows from other tabs (each has { source, mshs, fullName, className, hocPhi, ... })
     changeRecords: [],
     prevInvoiceStudents: [],
     prevThucTeStudents: [],
@@ -1032,7 +1033,7 @@ window.App = {
     setCount('acc-count-tab3', data.tab3.length);
     setCount('acc-count-tab4', data.tab4.length);
     setCount('acc-count-tab5', data.tab5.length);
-    setCount('acc-count-tab6', (data.tab6 || []).length);
+    setCount('acc-count-tab6', this.state.accTab6Rows.length);
     
     // Render Tab 1: DS HĐ Tháng trước
     this._renderAccTable('table-acc-tab1', data.tab1, (r, idx) => `
@@ -1081,18 +1082,8 @@ window.App = {
       </tr>
     `);
     
-    // Render Tab 6: Chuyển tiền sai
-    this._renderAccTable('table-acc-tab6', data.tab6 || [], (r, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${r.mshs}</td>
-        <td>${r.fullName}</td>
-        <td>${r.className}</td>
-        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td class="number" style="color: var(--accent-blue); font-weight:600;">${Utils.formatCurrency(r.ckAmount)}</td>
-        <td class="number" style="color: ${r.chenhLech < 0 ? 'var(--danger-color)' : 'var(--accent-yellow)'}; font-weight:600;">${r.lyDo || ''}</td>
-      </tr>
-    `);
+    // Render Tab 6: Tổng hợp (dynamic)
+    this._renderAccTab6();
   },
   
   _renderAccTable: function(tableId, rows, rowRenderer) {
@@ -1254,22 +1245,87 @@ window.App = {
         data.tab3.push({ mshs: r.mshs, fullName: r.fullName, className: r.className, hocPhi: r.hocPhi, teacher: r.teacher || '' });
       }
     }
-    // Sort tab3
     data.tab3.sort((a, b) => a.mshs.localeCompare(b.mshs));
 
     // Remove from tab4
     const movedMshs = new Set(vanhocRows.map(r => r.mshs));
     data.tab4 = data.tab4.filter(r => !movedMshs.has(r.mshs));
-
-    // Clear choices for moved students
     for (const mshs of movedMshs) {
       delete this.state.accTab4Choices[mshs];
     }
 
-    // Re-render
-    this.state.accTab4Confirmed = false; // Reset to show choices again for remaining
+    this.state.accTab4Confirmed = false;
     this.renderAccountingTabs();
     Utils.showToast(`Đã chuyển ${vanhocRows.length} HS sang Tab 3 Giảm bớt`, 'success');
+  },
+
+  // ========================
+  // ACCOUNTING TAB 6: Tổng hợp — copy from other tabs
+  // ========================
+  copyToAccTab6: function(fromTab) {
+    const data = this.state.accountingData;
+    if (!data) return;
+    const tabKey = 'tab' + fromTab;
+    const sourceRows = data[tabKey];
+    if (!sourceRows || sourceRows.length === 0) {
+      Utils.showToast(`Tab ${fromTab} không có dữ liệu`, 'info');
+      return;
+    }
+    const tabNames = { 1: 'DS HĐ tháng trước', 2: 'DS CK VTB', 3: 'Giảm bớt', 4: 'Stop - nghỉ học', 5: 'Tăng mới' };
+    const sourceLabel = tabNames[fromTab] || `Tab ${fromTab}`;
+    const existingMshs = new Set(this.state.accTab6Rows.map(r => r.mshs));
+    let added = 0;
+    for (const r of sourceRows) {
+      if (!existingMshs.has(r.mshs)) {
+        this.state.accTab6Rows.push({ ...r, source: sourceLabel });
+        existingMshs.add(r.mshs);
+        added++;
+      }
+    }
+    this.renderAccountingTabs();
+    Utils.showToast(added > 0
+      ? `Đã copy ${added} HS từ "${sourceLabel}" sang Tổng hợp`
+      : `Tất cả HS từ "${sourceLabel}" đã có trong Tổng hợp`, added > 0 ? 'success' : 'info');
+  },
+
+  clearAccTab6: function() {
+    if (this.state.accTab6Rows.length === 0) return;
+    this.state.accTab6Rows = [];
+    this.renderAccountingTabs();
+    Utils.showToast('Đã xoá tất cả trong Tổng hợp', 'success');
+  },
+
+  _renderAccTab6: function() {
+    const container = document.getElementById('acc-tab6-body');
+    if (!container) return;
+    const rows = this.state.accTab6Rows;
+    if (!rows || rows.length === 0) {
+      container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Chưa có dữ liệu. Bấm "📥 Copy sang Tổng hợp" ở tab bên trên.</p>';
+      return;
+    }
+    // Group by source
+    const grouped = {};
+    rows.forEach(r => {
+      const src = r.source || 'Khác';
+      if (!grouped[src]) grouped[src] = [];
+      grouped[src].push(r);
+    });
+    let html = '';
+    for (const [source, items] of Object.entries(grouped)) {
+      html += `<h4 style="margin: 16px 0 8px;">📌 Từ: ${source} (${items.length} HS)</h4>`;
+      html += `<div class="table-container mb-3"><table class="compact-table"><thead><tr>
+        <th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Nguồn</th>
+      </tr></thead><tbody>`;
+      items.forEach((r, idx) => {
+        html += `<tr>
+          <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
+          <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+          <td><span class="badge info">${r.source || ''}</span></td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+    container.innerHTML = html;
   },
 
 
@@ -1320,12 +1376,17 @@ window.App = {
       1: 'DS HĐ Tháng trước',
       2: 'DS CK VTB Tháng này',
       3: 'Giảm bớt',
-      4: 'Stop học nghỉ',
+      4: 'Stop - nghỉ học',
       5: 'Tăng mới',
-      6: 'Chuyển tiền sai'
+      6: 'Tổng hợp'
     };
     const tabKey = 'tab' + tabNum;
-    const rows = data[tabKey] || [];
+    let rows;
+    if (tabNum === 6) {
+      rows = this.state.accTab6Rows;
+    } else {
+      rows = data[tabKey] || [];
+    }
     if (rows.length === 0) {
       Utils.showToast('Tab này không có dữ liệu để xuất', 'info');
       return;

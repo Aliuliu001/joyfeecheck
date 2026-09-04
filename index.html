@@ -345,7 +345,7 @@
         <button class="sub-tab-btn" data-subtab="acc-tab3">📉 Giảm bớt</button>
         <button class="sub-tab-btn" data-subtab="acc-tab4">🛑 Stop - nghỉ học</button>
         <button class="sub-tab-btn" data-subtab="acc-tab5">📈 Tăng mới</button>
-        <button class="sub-tab-btn" data-subtab="acc-tab6">⚠️ Chuyển tiền sai</button>
+        <button class="sub-tab-btn" data-subtab="acc-tab6">📋 Tổng hợp</button>
       </div>
 
       <!-- Summary cards -->
@@ -385,10 +385,10 @@
             <span class="card-value" id="acc-count-tab5">0</span>
           </div>
         </div>
-        <div class="summary-card card" style="background: linear-gradient(135deg, #f85149 0%, #d29922 100%);">
-          <div class="card-icon">⚠️</div>
+        <div class="summary-card card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <div class="card-icon">📋</div>
           <div class="card-info">
-            <span class="card-label">CK sai tiền</span>
+            <span class="card-label">Tổng hợp</span>
             <span class="card-value" id="acc-count-tab6">0</span>
           </div>
         </div>
@@ -414,6 +414,7 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(1)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(1)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
@@ -439,6 +440,7 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(2)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(2)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
@@ -465,6 +467,7 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(3)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(3)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
@@ -501,33 +504,22 @@
             </table>
           </div>
           <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-outline" onclick="App.copyToAccTab6(5)">📥 Copy sang Tổng hợp</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(5)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
       </div>
 
-      <!-- Sub-tab 6: Chuyển tiền sai -->
+      <!-- Sub-tab 6: Tổng hợp (collection from other tabs) -->
       <div id="acc-tab6" class="sub-tab-content">
         <div class="card glass-card mt-4">
-          <h3>⚠️ Chuyển tiền sai — CK VTB sai số tiền HP</h3>
-          <p class="text-sm text-secondary mb-2">Học sinh CK vào TK Công ty VietinBank nhưng số tiền KHÁC với học phí quy định.</p>
-          <div class="table-container">
-            <table id="table-acc-tab6">
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>MSHS</th>
-                  <th>Họ tên</th>
-                  <th>Lớp</th>
-                  <th>HP quy định</th>
-                  <th>Số tiền CK</th>
-                  <th>Chênh lệch</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+          <h3>📋 Tổng hợp — Tập hợp dữ liệu từ các tab</h3>
+          <p class="text-sm text-secondary mb-2">Bấm "📥 Copy sang Tổng hợp" ở bất kỳ tab nào để đưa dữ liệu vào đây. Dữ liệu copy nguyên bản từ tab gốc.</p>
+          <div id="acc-tab6-body">
+            <!-- Rendered by JS -->
           </div>
           <div class="mt-3" style="text-align:right;">
+            <button class="btn btn-sm btn-danger" onclick="App.clearAccTab6()">🗑️ Xoá tất cả</button>
             <button class="btn btn-sm btn-primary" onclick="App.exportAccTab(6)">📥 Xuất Excel Tab này</button>
           </div>
         </div>
