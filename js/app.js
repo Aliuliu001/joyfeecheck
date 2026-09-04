@@ -22,7 +22,8 @@ window.App = {
     accountingData: null, // { tab1, tab2, tab3, tab4, tab5, tab6 }
     accTab4Choices: {}, // { mshs: 'nghi' | 'vanhoc' }
     accTab4Confirmed: false,
-    accTab7Rows: [], // accumulated rows from other tabs (each has { source, mshs, fullName, className, hocPhi, ... })
+    accTab7Rows: [], // accumulated rows from other tabs
+    accTab7FilterTags: null, // null = show all; Set of tag strings to show (each has { source, mshs, fullName, className, hocPhi, ... })
     changeRecords: [],
     prevInvoiceStudents: [],
     prevThucTeStudents: [],
@@ -1152,7 +1153,18 @@ window.App = {
         <table class="compact-table">
           <thead>
             <tr>
-              <th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th><th>Quyết định</th>
+              <th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Lý do</th>
+              <th style="min-width:200px;">
+                <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                  <span>Quyết định</span>
+                  <label style="font-size:11px; cursor:pointer; color:var(--danger-color);" title="Chọn toàn bộ Nghỉ">
+                    <input type="checkbox" onchange="App.setAllAccTab4('nghi', this.checked)"> 🛑 Tất cả
+                  </label>
+                  <label style="font-size:11px; cursor:pointer; color:var(--success-color);" title="Chọn toàn bộ Vẫn học">
+                    <input type="checkbox" onchange="App.setAllAccTab4('vanhoc', this.checked)"> 🔄 Tất cả
+                  </label>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1220,6 +1232,17 @@ window.App = {
 
   setAccTab4Choice: function(mshs, choice) {
     this.state.accTab4Choices[mshs] = choice;
+  },
+
+  setAllAccTab4: function(choice, checked) {
+    if (!checked) return; // only act on check, not uncheck
+    const data = this.state.accountingData;
+    if (!data) return;
+    const tab4Rows = data.tab4 || [];
+    tab4Rows.forEach(r => {
+      this.state.accTab4Choices[r.mshs] = choice;
+    });
+    this._renderAccTab4();
   },
 
   confirmAccTab4: function() {
@@ -1302,10 +1325,10 @@ window.App = {
       return;
     }
     const tagMap = { 1: 'DS HĐ tháng trước', 2: 'DS CK VTB', 3: 'Giảm bớt', 4: 'Stop - nghỉ học', 5: 'Tăng thêm', 6: 'CK sai tiền' };
+    const masterMap = new Map((this.state.students || []).map(s => [s.mshs, s]));
     const existingMshs = new Map(this.state.accTab7Rows.map(r => [r.mshs, r]));
     let added = 0;
     for (const r of sourceRows) {
-      // Build combined tags from ALL tabs
       const tags = [];
       for (let t = 1; t <= 6; t++) {
         const tabRows = data['tab' + t];
@@ -1314,11 +1337,19 @@ window.App = {
         }
       }
       const tagStr = tags.join(', ');
+      const master = masterMap.get(r.mshs) || {};
       if (existingMshs.has(r.mshs)) {
-        // Already in tab7 — update tags
         existingMshs.get(r.mshs).ghiChu = tagStr;
       } else {
-        this.state.accTab7Rows.push({ ...r, ghiChu: tagStr });
+        this.state.accTab7Rows.push({
+          mshs: r.mshs,
+          fullName: r.fullName || master.fullName || '',
+          className: r.className || master.className || '',
+          hocPhi: r.hocPhi || master.hocPhi || 0,
+          teacher: master.teacher || '',
+          diaChi: master.diaChi || '',
+          ghiChu: tagStr
+        });
         added++;
       }
     }
@@ -1341,19 +1372,74 @@ window.App = {
     const rows = this.state.accTab7Rows;
     if (!rows || rows.length === 0) {
       container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Chưa có dữ liệu. Bấm "📥 Copy sang Tổng hợp" ở tab bên trên.</p>';
+      // Clear filter bar
+      const filterBar = document.getElementById('acc-tab7-filter');
+      if (filterBar) filterBar.innerHTML = '<span class="text-sm" style="font-weight:600;">Hiển thị Ghi chú:</span>';
       return;
     }
-    let html = '<div class="table-container"><table class="compact-table"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Ghi chú</th></tr></thead><tbody>';
+
+    // Collect all unique tags
+    const allTags = new Set();
+    rows.forEach(r => {
+      (r.ghiChu || '').split(', ').filter(Boolean).forEach(t => allTags.add(t));
+    });
+
+    // Render filter checkboxes
+    const filterBar = document.getElementById('acc-tab7-filter');
+    if (filterBar) {
+      const activeTags = this.state.accTab7FilterTags; // null = all, Set = filtered
+      let filterHtml = '<span class="text-sm" style="font-weight:600;">Hiển thị Ghi chú:</span>';
+      filterHtml += `<label style="font-size:12px; cursor:pointer;"><input type="checkbox" ${!activeTags ? 'checked' : ''} onchange="App.accTab7ToggleAllTags(this.checked)"> Tất cả</label>`;
+      [...allTags].sort().forEach(tag => {
+        const checked = !activeTags || activeTags.has(tag);
+        filterHtml += `<label style="font-size:12px; cursor:pointer;"><input type="checkbox" ${checked ? 'checked' : ''} onchange="App.accTab7ToggleTag('${tag}', this.checked)"> ${tag}</label>`;
+      });
+      filterBar.innerHTML = filterHtml;
+    }
+
+    // Filter rows by active tags
+    const activeTags = this.state.accTab7FilterTags;
+    let html = '<div class="table-container"><table class="compact-table"><thead><tr><th>STT</th><th>MSHS</th><th>Lớp</th><th>Họ tên</th><th>Giáo viên</th><th>Học phí</th><th>Địa chỉ</th><th>Ghi chú</th></tr></thead><tbody>';
     rows.forEach((r, idx) => {
-      const tags = (r.ghiChu || '').split(', ').map(t => `<span class="badge info">${t}</span>`).join(' ');
+      const allRowTags = (r.ghiChu || '').split(', ').filter(Boolean);
+      const visibleTags = activeTags ? allRowTags.filter(t => activeTags.has(t)) : allRowTags;
+      // Skip row if no visible tags
+      if (activeTags && visibleTags.length === 0) return;
+      const tagsHtml = visibleTags.map(t => `<span class="badge info">${t}</span>`).join(' ');
       html += `<tr>
-        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
+        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td>
+        <td>${r.teacher || ''}</td>
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td>${tags || '—'}</td>
+        <td>${r.diaChi || ''}</td>
+        <td>${tagsHtml || '—'}</td>
       </tr>`;
     });
     html += '</tbody></table></div>';
     container.innerHTML = html;
+  },
+
+  accTab7ToggleAllTags: function(showAll) {
+    this.state.accTab7FilterTags = showAll ? null : new Set();
+    this._renderAccTab7();
+  },
+
+  accTab7ToggleTag: function(tag, checked) {
+    let activeTags = this.state.accTab7FilterTags;
+    if (!activeTags) {
+      // Was showing all — build set from all tags minus this one
+      activeTags = new Set();
+      this.state.accTab7Rows.forEach(r => {
+        (r.ghiChu || '').split(', ').filter(Boolean).forEach(t => activeTags.add(t));
+      });
+    }
+    if (checked) activeTags.add(tag); else activeTags.delete(tag);
+    // If all tags are active, set to null (show all)
+    const allTags = new Set();
+    this.state.accTab7Rows.forEach(r => {
+      (r.ghiChu || '').split(', ').filter(Boolean).forEach(t => allTags.add(t));
+    });
+    this.state.accTab7FilterTags = (activeTags.size >= allTags.size) ? null : activeTags;
+    this._renderAccTab7();
   },
 
 

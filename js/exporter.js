@@ -236,7 +236,7 @@ window.Exporter = {
       : isTab4
         ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do']
         : isTab7
-          ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Ghi chú']
+          ? ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'Ghi chú']
           : ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
 
     const aoa = [
@@ -249,13 +249,17 @@ window.Exporter = {
 
     let totalHP = 0;
     rows.forEach((r, idx) => {
-      const row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
-      if (isTab6) {
-        row.push(r.ckAmount || 0, r.lyDo || '');
-      } else if (isTab4) {
-        row.push(r.lyDo || '');
-      } else if (isTab7) {
-        row.push(r.ghiChu || '');
+      let row;
+      if (isTab7) {
+        // Tab 7: STT, MSHS, Lớp, Họ tên, Giáo viên, Học phí, Địa chỉ, Ghi chú
+        row = [idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', r.ghiChu || ''];
+      } else {
+        row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
+        if (isTab6) {
+          row.push(r.ckAmount || 0, r.lyDo || '');
+        } else if (isTab4) {
+          row.push(r.lyDo || '');
+        }
       }
       aoa.push(row);
       totalHP += (r.hocPhi || 0);
@@ -264,7 +268,7 @@ window.Exporter = {
     const totalRow = ['', '', '', 'TỔNG CỘNG', totalHP];
     if (isTab6) totalRow.push('', '');
     else if (isTab4) totalRow.push('');
-    else if (isTab7) totalRow.push('');
+    else if (isTab7) totalRow.push('', '', '', '');
     aoa.push(totalRow);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -360,7 +364,7 @@ window.Exporter = {
 
     // Sheet 7: Tổng hợp
     if (accTab7Rows && accTab7Rows.length > 0) {
-      const hdrs7 = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Ghi chú'];
+      const hdrs7 = ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'Ghi chú'];
       const aoa7 = [
         [APP_CONFIG.COMPANY_NAME],
         [`BÁO CÁO KẾ TOÁN - Tổng hợp - Tháng ${monthLabel}`],
@@ -369,7 +373,7 @@ window.Exporter = {
         hdrs7
       ];
       accTab7Rows.forEach((r, idx) => {
-        aoa7.push([idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0, r.ghiChu || '']);
+        aoa7.push([idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', r.ghiChu || '']);
       });
       XLSX.utils.book_append_sheet(wb,
         createSheet(aoa7, hdrs7),
