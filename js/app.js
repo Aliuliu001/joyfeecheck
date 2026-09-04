@@ -1104,9 +1104,12 @@ window.App = {
       if (s.mshs) currMap.set(s.mshs, s);
     }
     
-    // Compute the 6-tab comparison
+    // Compute the 6-tab comparison (Tab 6 uses NAIVE formula — independent of Report)
+    const familyGroups = Storage.loadFamilyGroups();
+    const hpDefault = Number(document.getElementById('default-fee')?.value) || APP_CONFIG.DEFAULT_HOC_PHI || 800000;
     this.state.accountingData = Accounting.computeInvoiceComparison(
-      prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS, this.state.reportRows
+      prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS, this.state.reportRows,
+      familyGroups, hpDefault
     );
   },
 
@@ -1450,35 +1453,24 @@ window.App = {
     if (!container) return;
     const data = this.state.accountingData;
     if (!data || !data.tab6 || data.tab6.length === 0) {
-      container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Không có HS nào CK sai tiền.</p>';
+      container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Không có giao dịch CK nào sai tiền (so với HP_default × số HS).</p>';
       return;
     }
-    let html = '<div class="table-container"><table id="table-acc-tab6"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP quy định</th><th>Số tiền CK</th><th>Chênh lệch</th><th>Nguồn CK</th></tr></thead><tbody>';
+    let html = '<div class="table-container"><table id="table-acc-tab6"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP kỳ vọng</th><th>Số tiền CK</th><th>Chênh lệch</th><th>Lý do</th></tr></thead><tbody>';
     data.tab6.forEach((r, idx) => {
-      const chenhLech = (r.ckAmount || 0) - (r.hocPhi || 0);
+      const chenhLech = r.chenhLech || ((r.ckAmount || 0) - (r.hocPhi || 0));
       const cls = chenhLech > 0 ? 'dư' : 'thieu';
-      // Render Nguồn CK similar to main report
-      const txList = r.txList || [];
-      let nguonCK = '';
-      if (txList.length > 0) {
-        const sourceLabels = { vtb: '🏦 VTB', tpb: '🏦 TPB', cash: '💵 TM' };
-        nguonCK = txList.map(tx => {
-          let label = `${sourceLabels[tx.type] || tx.type}: ${Utils.formatCurrency(tx.amount)}`;
-          if (tx.type === 'vtb' && tx.tenChuTK) label += ` (${tx.tenChuTK})`;
-          return label;
-        }).join('<br>');
-      } else {
-        nguonCK = '<span class="text-secondary">—</span>';
-      }
+      const familyBadge = r.isFamily ? '<span class="badge info" style="font-size:10px; margin-left:4px;">Gia đình</span>' : '';
       html += `<tr>
-        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
+        <td>${idx + 1}</td><td style="font-size:12px">${r.mshs}${familyBadge}</td><td style="font-size:12px">${r.fullName}</td><td style="font-size:12px">${r.className}</td>
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
         <td class="number">${Utils.formatCurrency(r.ckAmount)}</td>
-        <td class="number ${cls}">${chenhLech > 0 ? '+' : ''}${Utils.formatCurrency(chenhLech)}</td>
-        <td class="text-sm">${nguonCK}</td>
+        <td class="number ${cls}" style="font-weight:600">${chenhLech > 0 ? '+' : ''}${Utils.formatCurrency(chenhLech)}</td>
+        <td class="text-sm" style="color:${chenhLech > 0 ? 'var(--accent-yellow)' : 'var(--accent-red)'}">${r.lyDo || ''}</td>
       </tr>`;
     });
     html += '</tbody></table></div>';
+    html += `<p style="padding:8px; font-size:12px; color:var(--text-secondary)">💡 Kỳ vọng NAIVE = HP_default × số HS trong nhóm. Nếu lệch → kế toán soát tay (có thể do tiền sách, đóng nhiều tháng...)</p>`;
     container.innerHTML = html;
   },
 
