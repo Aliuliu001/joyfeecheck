@@ -419,13 +419,16 @@ window.App = {
     document.getElementById('search-report')?.addEventListener('input', applyFilters);
   },
 
-  applyReportFilters: function() {
-    const filters = {
-      trangThai: document.getElementById('filter-status')?.value || 'all',
-      className: document.getElementById('filter-class')?.value || 'all',
-      teacher: document.getElementById('filter-teacher')?.value || 'all',
-      searchText: document.getElementById('search-report')?.value || ''
-    };
+  applyReportFilters: function(filters) {
+    // If filters not passed, read from DOM
+    if (!filters) {
+      filters = {
+        trangThai: document.getElementById('filter-status')?.value || 'all',
+        className: document.getElementById('filter-class')?.value || 'all',
+        teacher: document.getElementById('filter-teacher')?.value || 'all',
+        searchText: document.getElementById('search-report')?.value || ''
+      };
+    }
     const filtered = Reporter.filterReport(this.state.reportRows, filters);
     this.renderReportTable(filtered);
   },
@@ -2804,6 +2807,14 @@ window.App = {
 
   // Tạm ngưng HS chưa đóng — hiện danh sách có checkbox để chọn
   suspendUnpaidStudents: function() {
+    // Save current filter state before suspend
+    this._savedFilters = {
+      trangThai: document.getElementById('filter-status')?.value || 'all',
+      className: document.getElementById('filter-class')?.value || 'all',
+      teacher: document.getElementById('filter-teacher')?.value || 'all',
+      searchText: document.getElementById('search-report')?.value || ''
+    };
+
     const monthYear = this.state.monthYear || '';
     const suspended = Storage.getSuspendedForMonth(monthYear);
     const suspendedSet = new Set(suspended.map(s => `${s.mshs}_${s.className}`));
@@ -2866,8 +2877,9 @@ window.App = {
           });
         });
         Utils.showToast(`Đã tạm ngưng ${count} lớp của ${checks.length} HS`, 'success');
+        // Re-render suspended table + restore saved filter state
         this.renderSuspendedTable();
-        this.runMatchingBackground();
+        this.applyReportFilters(this._savedFilters);
       }
     );
   },
