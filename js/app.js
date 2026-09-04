@@ -235,6 +235,8 @@ window.App = {
         const parsed = await Importer.parseGoogleSheets(file);
         this.state.students = parsed.students || parsed;
         result = Array.isArray(parsed.students) ? parsed.students : parsed;
+        // Re-validate keywords against new master list
+        this._revalidateKeywords();
       } else if (type === 'vietinBank') {
         this.state.vtbTransactions = await Importer.parseSaoKeVietinBank(file);
         result = this.state.vtbTransactions;
@@ -1698,6 +1700,46 @@ window.App = {
       reader.readAsText(file);
     };
     input.click();
+  },
+
+  _revalidateKeywords: function() {
+    const students = this.state.students || [];
+    const masterMshs = new Set(students.map(s => s.mshs));
+    const keywords = Storage.loadKeywords();
+    if (!keywords.length) return;
+
+    let staleCount = 0;
+    let fixedCount = 0;
+    const fixed = [];
+    const stale = [];
+
+    keywords.forEach(kw => {
+      if (!masterMshs.has(kw.mshs)) {
+        // MSHS no longer in master — try to find by studentName
+        const match = students.find(s => {
+          const normName = Utils.normalizeText(s.fullName || '');
+          const kwName = Utils.normalizeText(kw.studentName || '');
+          return normName && kwName && (normName.includes(kwName) || kwName.includes(normName));
+        });
+        if (match) {
+          kw.mshs = match.mshs;
+          kw.studentName = match.fullName;
+          fixed.push(`"${kw.keyword}" → ${match.mshs} (${match.fullName})`);
+          fixedCount++;
+        } else {
+          stale.push(`"${kw.keyword}" → MSHS cũ ${kw.mshs} (không tìm thấy)`);
+          staleCount++;
+        }
+      }
+    });
+
+    if (fixedCount > 0 || staleCount > 0) {
+      Storage.saveKeywords(keywords);
+      let msg = '';
+      if (fixedCount > 0) msg += `✅ Đã tự sửa ${fixedCount} từ khóa: ${fixed.join('; ')}`;
+      if (staleCount > 0) msg += `${msg ? '\n' : ''}⚠️ ${staleCount} từ khóa cần kiểm tra: ${stale.join('; ')}`;
+      Utils.showToast(msg, fixedCount > 0 ? 'success' : 'warning');
+    }
   },
 
   loadSettingsUI: function() {
