@@ -270,7 +270,6 @@
         <div class="filter-group">
           <button class="btn btn-sm btn-outline" onclick="App.runMatching(true)">🔄 Refresh</button>
           <button class="btn btn-sm btn-outline" onclick="App.addFamilyGroupUI()">➕ Nhóm gia đình</button>
-          <button class="btn btn-sm btn-warning" onclick="App.suspendUnpaidStudents()" title="Tạm ngưng tất cả HS chưa đóng">⏸️ Tạm ngưng Chưa đóng</button>
         </div>
       </div>
 
@@ -318,7 +317,10 @@
       <div class="mt-4">
         <div class="flex-between">
           <h3>⏸️ Học sinh tạm ngưng tháng này</h3>
-          <button class="btn btn-sm btn-primary" onclick="App.suspendStudentUI()">➕ Tạm ngưng HS</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-warning" onclick="App.suspendUnpaidStudents()" title="Tự chuyển tất cả HS Chưa đóng xuống tạm ngưng">⏸️ Tạm ngưng Chưa đóng</button>
+            <button class="btn btn-sm btn-primary" onclick="App.suspendStudentUI()">➕ Tạm ngưng HS</button>
+          </div>
         </div>
         <p class="text-sm text-secondary mb-2">HS tạm ngưng sẽ KHÔNG hiện trong báo cáo chính và KHÔNG báo "Chưa đóng".</p>
         <div class="table-container card glass-card">

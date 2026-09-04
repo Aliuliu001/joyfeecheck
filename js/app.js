@@ -1309,19 +1309,16 @@ window.App = {
   exportBackup: function() {
     const monthYear = this.state.monthYear || 'unknown';
     const backup = {};
-    // Export all relevant localStorage keys
-    const keys = [
-      'joy_prev_invoice_students', 'joy_prev_thuc_te_students',
-      'joy_skipped_stk', 'joy_skipped_tpb', 'joy_suspended',
-      'joy_keywords', 'joy_stk_phu', 'joy_family_groups',
-      'joy_adjustments', 'joy_history'
-    ];
-    keys.forEach(key => {
+    // Export all relevant localStorage keys from APP_CONFIG
+    const keys = Object.values(APP_CONFIG.STORAGE_KEYS);
+    // Also export custom keys
+    const extraKeys = ['joy_prev_invoice_students', 'joy_prev_thuc_te_students', 'joy_skipped_stk', 'joy_skipped_tpb', 'joy_suspended', 'joy_adjustments'];
+    [...keys, ...extraKeys].forEach(key => {
       const val = localStorage.getItem(key);
       if (val) backup[key] = JSON.parse(val);
     });
     // Also save current month
-    backup._meta = { monthYear, exportDate: new Date().toISOString() };
+    backup._meta = { monthYear, exportDate: new Date().toISOString(), version: APP_CONFIG.VERSION };
     // Download as JSON file
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
