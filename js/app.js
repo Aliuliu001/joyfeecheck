@@ -1405,8 +1405,6 @@ window.App = {
     rows.forEach((r, idx) => {
       const allRowTags = (r.ghiChu || '').split(', ').filter(Boolean);
       const visibleTags = activeTags ? allRowTags.filter(t => activeTags.has(t)) : allRowTags;
-      // Skip row if no visible tags
-      if (activeTags && visibleTags.length === 0) return;
       const tagsHtml = visibleTags.map(t => `<span class="badge info">${t}</span>`).join(' ');
       html += `<tr>
         <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td>
