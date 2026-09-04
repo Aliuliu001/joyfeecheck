@@ -1537,9 +1537,11 @@ window.App = {
           fullName: r.fullName || master.fullName || '',
           className: allClasses.join(', ') || r.className || '',
           hocPhi: r.hocPhi || master.hocPhi || 0,
+          hocPhiDefault: r.hocPhi || master.hocPhi || 0, // original for exception detection
           teacher: master.teacher || '',
           diaChi: master.diaChi || '',
-          ghiChu: tagStr
+          ghiChu: tagStr,
+          included: true // default checked
         });
         added++;
       }
@@ -1563,47 +1565,72 @@ window.App = {
     const rows = this.state.accTab7Rows;
     if (!rows || rows.length === 0) {
       container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Chưa có dữ liệu. Bấm "📥 Copy sang Tổng hợp" ở tab bên trên.</p>';
-      // Clear filter bar
       const filterBar = document.getElementById('acc-tab7-filter');
       if (filterBar) filterBar.innerHTML = '<span class="text-sm" style="font-weight:600;">Hiển thị Ghi chú:</span>';
       return;
     }
-
+    // Ensure rows have included + hocPhiDefault
+    rows.forEach(r => {
+      if (r.included === undefined) r.included = true;
+      if (r.hocPhiDefault === undefined) r.hocPhiDefault = r.hocPhi || 0;
+    });
     // Collect all unique tags
     const allTags = new Set();
-    rows.forEach(r => {
-      (r.ghiChu || '').split(', ').filter(Boolean).forEach(t => allTags.add(t));
-    });
-
-    // Render filter checkboxes
+    rows.forEach(r => { (r.ghiChu || '').split(', ').filter(Boolean).forEach(t => allTags.add(t)); });
+    // Render tag filter + sort dropdown
     const filterBar = document.getElementById('acc-tab7-filter');
     if (filterBar) {
-      const activeTags = this.state.accTab7FilterTags; // null = all, Set = filtered
-      let filterHtml = '<span class="text-sm" style="font-weight:600;">Hiển thị Ghi chú:</span>';
-      filterHtml += `<label style="font-size:12px; cursor:pointer;"><input type="checkbox" ${!activeTags ? 'checked' : ''} onchange="App.accTab7ToggleAllTags(this.checked)"> Tất cả</label>`;
+      const activeTags = this.state.accTab7FilterTags;
+      let fh = '<span class="text-sm" style="font-weight:600;">Hiển thị Ghi chú:</span>';
+      fh += '<label style="font-size:12px; cursor:pointer;"><input type="checkbox" ' + (!activeTags ? 'checked' : '') + ' onchange="App.accTab7ToggleAllTags(this.checked)"> Tất cả</label>';
       [...allTags].sort().forEach(tag => {
-        const checked = !activeTags || activeTags.has(tag);
-        filterHtml += `<label style="font-size:12px; cursor:pointer;"><input type="checkbox" ${checked ? 'checked' : ''} onchange="App.accTab7ToggleTag('${tag}', this.checked)"> ${tag}</label>`;
+        const ck = !activeTags || activeTags.has(tag);
+        fh += '<label style="font-size:12px; cursor:pointer;"><input type="checkbox" ' + (ck ? 'checked' : '') + ' onchange="App.accTab7ToggleTag(\''+tag+'\', this.checked)"> '+tag+'</label>';
       });
-      filterBar.innerHTML = filterHtml;
+      const cs = this.state.accTab7Sort || 'default';
+      fh += '<span style="margin-left:auto;"></span>';
+      fh += '<select class="form-control" style="width:auto; font-size:12px; padding:2px 6px;" onchange="App.accTab7SortChange(this.value)">';
+      fh += '<option value="default" '+(cs==='default'?'selected':'')+'>Sắp xếp: Mặc định</option>';
+      fh += '<option value="exception" '+(cs==='exception'?'selected':'')+'>⚡ Ngoại lệ lên đầu</option>';
+      fh += '<option value="mshs-asc" '+(cs==='mshs-asc'?'selected':'')+'>MSHS A→Z</option>';
+      fh += '<option value="name-asc" '+(cs==='name-asc'?'selected':'')+'>Họ tên A→Z</option>';
+      fh += '<option value="class-asc" '+(cs==='class-asc'?'selected':'')+'>Lớp A→Z</option>';
+      fh += '<option value="hp-asc" '+(cs==='hp-asc'?'selected':'')+'>Học phí ↑</option>';
+      fh += '<option value="hp-desc" '+(cs==='hp-desc'?'selected':'')+'>Học phí ↓</option>';
+      fh += '</select>';
+      filterBar.innerHTML = fh;
     }
-
-    // Filter rows by active tags
-    const activeTags = this.state.accTab7FilterTags;
-    let html = '<div class="table-container"><table class="compact-table"><thead><tr><th>STT</th><th>MSHS</th><th>Lớp</th><th>Họ tên</th><th>Giáo viên</th><th>Học phí</th><th>Địa chỉ</th><th>Ghi chú</th></tr></thead><tbody>';
-    rows.forEach((r, idx) => {
-      const allRowTags = (r.ghiChu || '').split(', ').filter(Boolean);
-      const visibleTags = activeTags ? allRowTags.filter(t => activeTags.has(t)) : allRowTags;
-      const tagsHtml = visibleTags.map(t => `<span class="badge info">${t}</span>`).join(' ');
-      html += `<tr>
-        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.className}</td><td>${r.fullName}</td>
-        <td>${r.teacher || ''}</td>
-        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td>${r.diaChi || ''}</td>
-        <td>${tagsHtml || '—'}</td>
-      </tr>`;
+    // Apply sort
+    let sorted = [...rows];
+    const sort = this.state.accTab7Sort || 'default';
+    if (sort==='exception') sorted.sort((a,b)=>{const ae=a.hocPhi!==a.hocPhiDefault?0:1;const be=b.hocPhi!==b.hocPhiDefault?0:1;return ae-be||a.mshs.localeCompare(b.mshs);});
+    else if (sort==='mshs-asc') sorted.sort((a,b)=>a.mshs.localeCompare(b.mshs));
+    else if (sort==='name-asc') sorted.sort((a,b)=>(a.fullName||'').localeCompare(b.fullName||''));
+    else if (sort==='class-asc') sorted.sort((a,b)=>(a.className||'').localeCompare(b.className||''));
+    else if (sort==='hp-asc') sorted.sort((a,b)=>(a.hocPhi||0)-(b.hocPhi||0));
+    else if (sort==='hp-desc') sorted.sort((a,b)=>(b.hocPhi||0)-(a.hocPhi||0));
+    // Render table
+    const at = this.state.accTab7FilterTags;
+    let html = '<div class="table-container"><table class="compact-table"><thead><tr><th style="width:40px">✓</th><th>STT</th><th>MSHS</th><th>Lớp</th><th>Họ tên</th><th>Giáo viên</th><th style="width:100px">Học phí</th><th>Địa chỉ</th><th>Ghi chú</th></tr></thead><tbody>';
+    let totalHP=0, incCount=0;
+    sorted.forEach((r, idx) => {
+      const art = (r.ghiChu||'').split(', ').filter(Boolean);
+      const vt = at ? art.filter(t=>at.has(t)) : art;
+      const tagsH = vt.map(t=>'<span class="badge info">'+t+'</span>').join(' ');
+      const isEx = r.hocPhi !== r.hocPhiDefault;
+      const rs = isEx ? 'background:rgba(255,193,7,0.08);' : '';
+      if (r.included) { totalHP += (r.hocPhi||0); incCount++; }
+      html += '<tr style="'+rs+'">';
+      html += '<td><input type="checkbox" '+(r.included?'checked':'')+' onchange="App.accTab7ToggleRow(\''+r.mshs+'\', this.checked)"></td>';
+      html += '<td>'+(idx+1)+'</td><td>'+r.mshs+'</td><td>'+r.className+'</td><td>'+r.fullName+'</td>';
+      html += '<td>'+(r.teacher||'')+'</td>';
+      html += '<td><input type="number" class="form-control" style="width:90px;padding:2px 4px;font-size:12px;text-align:right;background:var(--bg-tertiary);border:1px solid var(--border-color);"';
+      html += ' value="'+(r.hocPhi||0)+'" onchange="App.accTab7EditHP(\''+r.mshs+'\', this.value)"></td>';
+      html += '<td style="font-size:12px">'+(r.diaChi||'')+'</td>';
+      html += '<td style="font-size:12px">'+(tagsH||'—')+'</td></tr>';
     });
     html += '</tbody></table></div>';
+    html += '<div style="padding:8px;font-size:13px;display:flex;gap:20px;"><span>☑ Đã chọn: <strong>'+incCount+'</strong> HS</span><span>💰 Tổng cộng: <strong>'+Utils.formatCurrency(totalHP)+'</strong></span></div>';
     container.innerHTML = html;
   },
 
@@ -1687,7 +1714,15 @@ window.App = {
     const tabKey = 'tab' + tabNum;
     let rows;
     if (tabNum === 7) {
-      rows = this.state.accTab7Rows;
+      rows = this.state.accTab7Rows.filter(r => r.included !== false);
+      // Also apply sort for export
+      const sort = this.state.accTab7Sort || 'default';
+      if (sort === 'exception') rows.sort((a,b)=>{const ae=a.hocPhi!==a.hocPhiDefault?0:1;const be=b.hocPhi!==b.hocPhiDefault?0:1;return ae-be||a.mshs.localeCompare(b.mshs);});
+      else if (sort === 'mshs-asc') rows.sort((a,b)=>a.mshs.localeCompare(b.mshs));
+      else if (sort === 'name-asc') rows.sort((a,b)=>(a.fullName||'').localeCompare(b.fullName||''));
+      else if (sort === 'class-asc') rows.sort((a,b)=>(a.className||'').localeCompare(b.className||''));
+      else if (sort === 'hp-asc') rows.sort((a,b)=>(a.hocPhi||0)-(b.hocPhi||0));
+      else if (sort === 'hp-desc') rows.sort((a,b)=>(b.hocPhi||0)-(a.hocPhi||0));
     } else {
       rows = data[tabKey] || [];
     }
