@@ -2877,9 +2877,18 @@ window.App = {
           });
         });
         Utils.showToast(`Đã tạm ngưng ${count} lớp của ${checks.length} HS`, 'success');
-        // Re-render suspended table + restore saved filter state
+        // Re-render suspended table
         this.renderSuspendedTable();
+        // Restore saved filter state (both data + dropdown UI)
         this.applyReportFilters(this._savedFilters);
+        if (this._savedFilters) {
+          const fs = document.getElementById('filter-status');
+          const fc = document.getElementById('filter-class');
+          const ft = document.getElementById('filter-teacher');
+          if (fs) fs.value = this._savedFilters.trangThai || 'all';
+          if (fc) fc.value = this._savedFilters.className || 'all';
+          if (ft) ft.value = this._savedFilters.teacher || 'all';
+        }
       }
     );
   },
