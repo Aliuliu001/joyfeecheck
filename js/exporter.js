@@ -280,19 +280,41 @@ window.Exporter = {
     this.autoFitColumns(ws, null, headers);
     XLSX.utils.book_append_sheet(wb, ws, tabTitle.substring(0, 31));
 
-    // Tab 7: add DS HS Master sheet
+    // Tab 7: add DS HS Master sheet (deduplicated by MSHS)
     if (isTab7) {
       const students = window.App?.state?.students || [];
       if (students.length > 0) {
+        // Deduplicate: merge rows with same MSHS (combine class names)
+        const mergedMap = new Map();
+        students.forEach(s => {
+          const key = s.mshs || '';
+          if (mergedMap.has(key)) {
+            const existing = mergedMap.get(key);
+            // Add class if not already present
+            if (s.className && !existing.classes.includes(s.className)) {
+              existing.classes.push(s.className);
+            }
+          } else {
+            mergedMap.set(key, {
+              mshs: key,
+              fullName: s.fullName || '',
+              classes: s.className ? [s.className] : [],
+              teacher: s.teacher || '',
+              hocPhi: Number(s.hocPhi) || 0,
+              diaChi: s.diaChi || '',
+              phone: s.phone || ''
+            });
+          }
+        });
         const masterHdrs = ['MSHS', 'Họ tên', 'Lớp', 'Giáo viên', 'Học phí', 'Địa chỉ', 'SĐT PH'];
         const masterAoa = [
           ['DANH SÁCH HỌC SINH TỔNG'],
-          [`Tháng ${monthLabel}`],
+          [`Tháng ${monthLabel} (${mergedMap.size} HS)`],
           [],
           masterHdrs
         ];
-        students.forEach(s => {
-          masterAoa.push([s.mshs || '', s.fullName || '', s.className || '', s.teacher || '', s.hocPhi || 0, s.diaChi || '', s.phone || '']);
+        mergedMap.forEach(s => {
+          masterAoa.push([s.mshs, s.fullName, s.classes.join(', '), s.teacher, s.hocPhi, s.diaChi, s.phone]);
         });
         const wsMaster = XLSX.utils.aoa_to_sheet(masterAoa);
         this.autoFitColumns(wsMaster, null, masterHdrs);
