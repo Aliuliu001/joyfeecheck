@@ -154,6 +154,11 @@ window.App = {
         if (tabId === 'exception-tab') {
           this.renderUndoButton();
         }
+        // Re-render report + suspended table when report tab is shown
+        if (tabId === 'report-tab') {
+          this.applyReportFilters();
+          this.renderSuspendedTable();
+        }
       });
     });
 
@@ -2877,6 +2882,9 @@ window.App = {
           });
         });
         Utils.showToast(`Đã tạm ngưng ${count} lớp của ${checks.length} HS`, 'success');
+        // Verify data was saved
+        const verifyList = Storage.getSuspendedForMonth(monthYear);
+        console.log('[Suspend] Saved count:', count, 'Verified in storage:', verifyList.length, 'monthYear:', monthYear);
         // Re-render suspended table
         this.renderSuspendedTable();
         // Restore saved filter state (both data + dropdown UI)
