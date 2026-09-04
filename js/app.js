@@ -331,6 +331,77 @@ window.App = {
   },
 
   // ========================
+  // FIND STUDENT
+  // ========================
+  findStudent: function() {
+    const students = this.state.students || [];
+    if (students.length === 0) {
+      Utils.showToast('Chưa có dữ liệu học sinh', 'warning');
+      return;
+    }
+    Utils.showModal(
+      '🔍 Tìm Học sinh',
+      `<div class="form-group mb-3">
+        <label>Nhập MSHS hoặc tên HS:</label>
+        <input type="text" id="input-find-student" class="form-control" placeholder="VD: HV015 hoặc Nguyễn..." autofocus
+          oninput="App._findStudentSuggest(this.value)">
+      </div>
+      <div id="find-suggest-list" style="max-height:250px; overflow-y:auto;"></div>`,
+      null, // no confirm button needed
+      true  // wide modal
+    );
+    setTimeout(() => document.getElementById('input-find-student')?.focus(), 100);
+  },
+
+  _findStudentSuggest: function(query) {
+    const list = document.getElementById('find-suggest-list');
+    if (!list) return;
+    if (!query || query.length < 1) { list.innerHTML = ''; return; }
+    const q = Utils.normalizeText(query);
+    const matches = this.state.students.filter(s => {
+      const mshs = Utils.normalizeText(s.mshs || '');
+      const name = Utils.normalizeText(s.fullName || '');
+      return mshs.includes(q) || name.includes(q);
+    }).slice(0, 20);
+
+    if (matches.length === 0) {
+      list.innerHTML = '<p class="text-sm text-secondary" style="padding:8px;">Không tìm thấy</p>';
+      return;
+    }
+    list.innerHTML = matches.map(s => {
+      return `<div style="padding:6px 8px; cursor:pointer; border-bottom:1px solid var(--border-color); font-size:0.85rem;"
+        onmouseover="this.style.background='var(--bg-secondary)'"
+        onmouseout="this.style.background=''"
+        onclick="App._scrollToStudent('${s.mshs}')">
+        <strong>${s.mshs}</strong> — ${s.fullName} (${s.className || ''})
+      </div>`;
+    }).join('');
+  },
+
+  _scrollToStudent: function(mshs) {
+    // Close modal first
+    const modal = document.getElementById('modal-overlay');
+    if (modal) modal.style.display = 'none';
+    // Find the row in the report table
+    const tbody = document.querySelector('#table-report tbody');
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    for (const row of rows) {
+      const cells = row.querySelectorAll('td');
+      for (const cell of cells) {
+        if (cell.textContent.trim().toUpperCase() === mshs.toUpperCase()) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          row.style.background = 'var(--accent-yellow)';
+          row.style.transition = 'background 0.3s';
+          setTimeout(() => { row.style.background = ''; }, 2000);
+          return;
+        }
+      }
+    }
+    Utils.showToast(`Không tìm thấy ${mshs} trong bảng (thử Refresh)`, 'info');
+  },
+
+  // ========================
   // FILTERS
   // ========================
   setupFilters: function() {
