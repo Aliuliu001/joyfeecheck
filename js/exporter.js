@@ -230,11 +230,14 @@ window.Exporter = {
 
     const isTab6 = tabNum === 6;
     const isTab4 = tabNum === 4;
+    const isTab7 = tabNum === 7;
     const headers = isTab6
       ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'HP quy định', 'Số tiền CK', 'Chênh lệch']
       : isTab4
         ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do']
-        : ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
+        : isTab7
+          ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Ghi chú']
+          : ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
 
     const aoa = [
       [APP_CONFIG.COMPANY_NAME],
@@ -251,6 +254,8 @@ window.Exporter = {
         row.push(r.ckAmount || 0, r.lyDo || '');
       } else if (isTab4) {
         row.push(r.lyDo || '');
+      } else if (isTab7) {
+        row.push(r.ghiChu || '');
       }
       aoa.push(row);
       totalHP += (r.hocPhi || 0);
@@ -259,6 +264,7 @@ window.Exporter = {
     const totalRow = ['', '', '', 'TỔNG CỘNG', totalHP];
     if (isTab6) totalRow.push('', '');
     else if (isTab4) totalRow.push('');
+    else if (isTab7) totalRow.push('');
     aoa.push(totalRow);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -354,18 +360,19 @@ window.Exporter = {
 
     // Sheet 7: Tổng hợp
     if (accTab7Rows && accTab7Rows.length > 0) {
+      const hdrs7 = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Ghi chú'];
       const aoa7 = [
         [APP_CONFIG.COMPANY_NAME],
         [`BÁO CÁO KẾ TOÁN - Tổng hợp - Tháng ${monthLabel}`],
         [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
         [],
-        headers5
+        hdrs7
       ];
       accTab7Rows.forEach((r, idx) => {
-        aoa7.push([idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0]);
+        aoa7.push([idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0, r.ghiChu || '']);
       });
       XLSX.utils.book_append_sheet(wb,
-        createSheet(aoa7, headers5),
+        createSheet(aoa7, hdrs7),
         '7_Tổng_hợp');
     }
 

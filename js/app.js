@@ -1301,21 +1301,31 @@ window.App = {
       Utils.showToast(`Tab ${fromTab} không có dữ liệu`, 'info');
       return;
     }
-    const tabNames = { 1: 'DS HĐ tháng trước', 2: 'DS CK VTB', 3: 'Giảm bớt', 4: 'Stop - nghỉ học', 5: 'Tăng mới', 6: 'Chuyển tiền sai' };
-    const sourceLabel = tabNames[fromTab] || `Tab ${fromTab}`;
-    const existingMshs = new Set(this.state.accTab7Rows.map(r => r.mshs));
+    const tagMap = { 1: 'DS HĐ tháng trước', 2: 'DS CK VTB', 3: 'Giảm bớt', 4: 'Stop - nghỉ học', 5: 'Tăng thêm', 6: 'CK sai tiền' };
+    const existingMshs = new Map(this.state.accTab7Rows.map(r => [r.mshs, r]));
     let added = 0;
     for (const r of sourceRows) {
-      if (!existingMshs.has(r.mshs)) {
-        this.state.accTab7Rows.push({ ...r, source: sourceLabel });
-        existingMshs.add(r.mshs);
+      // Build combined tags from ALL tabs
+      const tags = [];
+      for (let t = 1; t <= 6; t++) {
+        const tabRows = data['tab' + t];
+        if (tabRows && tabRows.some(tr => tr.mshs === r.mshs)) {
+          tags.push(tagMap[t]);
+        }
+      }
+      const tagStr = tags.join(', ');
+      if (existingMshs.has(r.mshs)) {
+        // Already in tab7 — update tags
+        existingMshs.get(r.mshs).ghiChu = tagStr;
+      } else {
+        this.state.accTab7Rows.push({ ...r, ghiChu: tagStr });
         added++;
       }
     }
     this.renderAccountingTabs();
     Utils.showToast(added > 0
-      ? `Đã copy ${added} HS từ "${sourceLabel}" sang Tổng hợp`
-      : `Tất cả HS từ "${sourceLabel}" đã có trong Tổng hợp`, added > 0 ? 'success' : 'info');
+      ? `Đã copy ${added} HS sang Tổng hợp (tags đã cập nhật)`
+      : `Tags đã cập nhật cho HS có sẵn trong Tổng hợp`, added > 0 ? 'success' : 'info');
   },
 
   clearAccTab7: function() {
@@ -1333,28 +1343,16 @@ window.App = {
       container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Chưa có dữ liệu. Bấm "📥 Copy sang Tổng hợp" ở tab bên trên.</p>';
       return;
     }
-    // Group by source
-    const grouped = {};
-    rows.forEach(r => {
-      const src = r.source || 'Khác';
-      if (!grouped[src]) grouped[src] = [];
-      grouped[src].push(r);
+    let html = '<div class="table-container"><table class="compact-table"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Ghi chú</th></tr></thead><tbody>';
+    rows.forEach((r, idx) => {
+      const tags = (r.ghiChu || '').split(', ').map(t => `<span class="badge info">${t}</span>`).join(' ');
+      html += `<tr>
+        <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
+        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
+        <td>${tags || '—'}</td>
+      </tr>`;
     });
-    let html = '';
-    for (const [source, items] of Object.entries(grouped)) {
-      html += `<h4 style="margin: 16px 0 8px;">📌 Từ: ${source} (${items.length} HS)</h4>`;
-      html += `<div class="table-container mb-3"><table class="compact-table"><thead><tr>
-        <th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>Học phí</th><th>Nguồn</th>
-      </tr></thead><tbody>`;
-      items.forEach((r, idx) => {
-        html += `<tr>
-          <td>${idx + 1}</td><td>${r.mshs}</td><td>${r.fullName}</td><td>${r.className}</td>
-          <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-          <td><span class="badge info">${r.source || ''}</span></td>
-        </tr>`;
-      });
-      html += `</tbody></table></div>`;
-    }
+    html += '</tbody></table></div>';
     container.innerHTML = html;
   },
 
