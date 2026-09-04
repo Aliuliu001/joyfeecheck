@@ -9,6 +9,46 @@ window.Exporter = {
     XLSX.writeFile(workbook, filename);
   },
 
+  // Vietnamese number to words (for amounts)
+  _numberToWords: function(num) {
+    if (num === 0) return 'không đồng';
+    const ones = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+    const tens = ['', 'mười', 'hai mươi', 'ba mươi', 'bốn mươi', 'năm mươi', 'sáu mươi', 'bảy mươi', 'tám mươi', 'chín mươi'];
+    const read3 = (n) => {
+      if (n === 0) return '';
+      let result = '';
+      const h = Math.floor(n / 100);
+      const t = Math.floor((n % 100) / 10);
+      const o = n % 10;
+      if (h > 0) result += ones[h] + ' trăm';
+      if (t > 0) {
+        if (t === 1 && h > 0) result += ' mười';
+        else result += (h > 0 ? ' ' : '') + tens[t];
+      } else if (h > 0 && o > 0) {
+        result += ' lẻ';
+      }
+      if (o > 0) {
+        if (t === 1 && h === 0) result += (result ? ' ' : '') + 'một';
+        else result += (result ? ' ' : '') + ones[o];
+      }
+      return result;
+    };
+    const units = ['', 'nghìn', 'triệu', 'tỷ'];
+    let n = Math.floor(num);
+    let words = '';
+    let unitIdx = 0;
+    while (n > 0) {
+      const chunk = n % 1000;
+      if (chunk > 0) {
+        const chunkWords = read3(chunk);
+        words = chunkWords + (units[unitIdx] ? ' ' + units[unitIdx] : '') + (words ? ' ' + words : '');
+      }
+      n = Math.floor(n / 1000);
+      unitIdx++;
+    }
+    return words.trim() + ' đồng chẵn';
+  },
+
   // Helper to autofit columns based on data length
   autoFitColumns(ws, data, headerKeys) {
     const colWidths = headerKeys.map(key => {
@@ -240,41 +280,65 @@ window.Exporter = {
           ? ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'Ghi chú']
           : ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
 
-    const aoa = [
-      [APP_CONFIG.COMPANY_NAME],
-      [`BÁO CÁO KẾ TOÁN — ${tabTitle} — Tháng ${monthLabel}`],
-      [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
-      [],
-      headers
-    ];
-
+    let aoa;
     let totalHP = 0;
-    rows.forEach((r, idx) => {
-      let row;
-      if (isTab7) {
-        // Tab 7: filter ghiChu by active tags
+
+    if (isTab7) {
+      // Tab 7: Formal invoice format
+      aoa = [
+        ['CÔNG TY TNHH TRUNG TÂM NGOẠI NGỮ JOY'],
+        ['5801527284'],
+        ['Hẻm 3b, Hồ Tùng Mậu, Phường Xuân Hương - Đà Lạt, Tỉnh Lâm Đồng'],
+        [],
+        [`DANH SÁCH HỌC SINH THÁNG ${monthLabel}`],
+        [],
+        headers
+      ];
+      rows.forEach((r, idx) => {
         let ghiChu = r.ghiChu || '';
         if (filterTags && ghiChu) {
           ghiChu = ghiChu.split(', ').filter(t => filterTags.has(t)).join(', ');
         }
-        row = [idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', ghiChu];
-      } else {
-        row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
-        if (isTab6) {
-          row.push(r.ckAmount || 0, r.lyDo || '');
-        } else if (isTab4) {
-          row.push(r.lyDo || '');
-        }
-      }
-      aoa.push(row);
-      totalHP += (r.hocPhi || 0);
-    });
-
-    const totalRow = ['', '', '', 'TỔNG CỘNG', totalHP];
-    if (isTab6) totalRow.push('', '');
-    else if (isTab4) totalRow.push('');
-    else if (isTab7) totalRow.push('', '', '', '');
-    aoa.push(totalRow);
+        aoa.push([idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', ghiChu]);
+        totalHP += (r.hocPhi || 0);
+      });
+      // Total row
+      const dataEndRow = aoa.length; // last data row number in Excel
+      aoa.push(['', '', '', 'TỔNG CỘNG', totalHP, '', '', '']);
+      // Empty row
+      aoa.push([]);
+      // Amount in words (column A)
+      const amountWords = 'Số tiền bằng chữ: ' + this._numberToWords(totalHP);
+      aoa.push([amountWords]);
+      // Empty row
+      aoa.push([]);
+      // Giám đốc (column F = Địa chỉ = index 6)
+      aoa.push(['', '', '', '', '', 'Giám đốc']);
+      // 4 empty rows for signature space
+      aoa.push([], [], [], []);
+      // TRƯƠNG TUẤN NGỌC (column F = Địa chỉ)
+      aoa.push(['', '', '', '', '', 'TRƯƠNG TUẤN NGỌC']);
+    } else {
+      // Other tabs: standard format
+      aoa = [
+        [APP_CONFIG.COMPANY_NAME],
+        [`BÁO CÁO KẾ TOÁN — ${tabTitle} — Tháng ${monthLabel}`],
+        [`Ngày tạo: ${new Date().toLocaleDateString('vi-VN')}`],
+        [],
+        headers
+      ];
+      rows.forEach((r, idx) => {
+        const row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
+        if (isTab6) row.push(r.ckAmount || 0, r.lyDo || '');
+        else if (isTab4) row.push(r.lyDo || '');
+        aoa.push(row);
+        totalHP += (r.hocPhi || 0);
+      });
+      const totalRow = ['', '', '', 'TỔNG CỘNG', totalHP];
+      if (isTab6) totalRow.push('', '');
+      else if (isTab4) totalRow.push('');
+      aoa.push(totalRow);
+    }
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     this.autoFitColumns(ws, null, headers);
@@ -306,7 +370,7 @@ window.Exporter = {
             });
           }
         });
-        const masterHdrs = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Giáo viên', 'Học phí', 'Địa chỉ', 'SĐT PH'];
+        const masterHdrs = ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'SĐT PH'];
         const masterAoa = [
           ['DANH SÁCH HỌC SINH TỔNG'],
           [`Tháng ${monthLabel} (${mergedMap.size} HS)`],
@@ -315,7 +379,7 @@ window.Exporter = {
         ];
         let stt = 1;
         mergedMap.forEach(s => {
-          masterAoa.push([stt++, s.mshs, s.fullName, s.classes.join(', '), s.teacher, s.hocPhi, s.diaChi, s.phone]);
+          masterAoa.push([stt++, s.mshs, s.classes.join(', '), s.fullName, s.teacher, s.hocPhi, s.diaChi, s.phone]);
         });
         const wsMaster = XLSX.utils.aoa_to_sheet(masterAoa);
         this.autoFitColumns(wsMaster, null, masterHdrs);
