@@ -309,6 +309,9 @@
         <button id="btn-export-nhac-ph" class="btn btn-outline" style="border-color: var(--warning-color); color: var(--warning-color);">
           📋 Xuất DS Nhắc Phí
         </button>
+        <button class="btn btn-sm btn-outline" onclick="App.exportBackup()" title="Tải file backup phiên làm việc">💾 Backup</button>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('import-backup-input').click()" title="Phục hồi từ file backup">📂 Restore</button>
+        <input type="file" id="import-backup-input" accept=".json" style="display:none" onchange="App.importBackup(this)">
       </div>
 
       <!-- Học sinh tạm ngưng -->

@@ -335,14 +335,17 @@ window.App = {
   // ========================
   setupFilters: function() {
     const applyFilters = Utils.debounce(() => this.applyReportFilters(), 200);
-    document.getElementById('filter-status')?.addEventListener('change', applyFilters);
+    const statusSelect = document.getElementById('filter-status');
+    if (statusSelect) {
+      statusSelect.addEventListener('change', applyFilters);
+      // Fix: after applying, reset to "all" so same-option click works next time
+      statusSelect.addEventListener('change', () => {
+        setTimeout(() => { statusSelect.value = 'all'; }, 300);
+      });
+    }
     document.getElementById('filter-class')?.addEventListener('change', applyFilters);
     document.getElementById('filter-teacher')?.addEventListener('change', applyFilters);
     document.getElementById('search-report')?.addEventListener('input', applyFilters);
-    // Fix: re-apply on mousedown so clicking same option again works
-    document.getElementById('filter-status')?.addEventListener('mousedown', () => {
-      setTimeout(() => this.applyReportFilters(), 50);
-    });
   },
 
   applyReportFilters: function() {
@@ -1298,6 +1301,69 @@ window.App = {
     this.state.accTab4Confirmed = false;
     this.renderAccountingTabs();
     Utils.showToast(`Đã chuyển ${vanhocRows.length} HS sang Tab 3 Giảm bớt`, 'success');
+  },
+
+  // ========================
+  // BACKUP / RESTORE
+  // ========================
+  exportBackup: function() {
+    const monthYear = this.state.monthYear || 'unknown';
+    const backup = {};
+    // Export all relevant localStorage keys
+    const keys = [
+      'joy_prev_invoice_students', 'joy_prev_thuc_te_students',
+      'joy_skipped_stk', 'joy_skipped_tpb', 'joy_suspended',
+      'joy_keywords', 'joy_stk_phu', 'joy_family_groups',
+      'joy_adjustments', 'joy_history'
+    ];
+    keys.forEach(key => {
+      const val = localStorage.getItem(key);
+      if (val) backup[key] = JSON.parse(val);
+    });
+    // Also save current month
+    backup._meta = { monthYear, exportDate: new Date().toISOString() };
+    // Download as JSON file
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `JoyFeeCheck_Backup_${monthYear.replace('/', '-')}_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    Utils.showToast('Đã tải file backup', 'success');
+  },
+
+  importBackup: function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const backup = JSON.parse(e.target.result);
+        if (!backup._meta) {
+          Utils.showToast('File không hợp lệ (thiếu thông tin backup)', 'error');
+          return;
+        }
+        // Restore keys
+        let count = 0;
+        Object.keys(backup).forEach(key => {
+          if (key === '_meta') return;
+          localStorage.setItem(key, JSON.stringify(backup[key]));
+          count++;
+        });
+        Utils.showToast(`Đã phục hồi ${count} mục từ backup tháng ${backup._meta.monthYear}`, 'success');
+        // Reload settings UI
+        if (this.loadSettingsUI) this.loadSettingsUI();
+        // Re-run matching if data available
+        if (this.state.students && this.state.students.length > 0) {
+          this.runMatchingBackground();
+        }
+      } catch (err) {
+        Utils.showToast('Lỗi đọc file: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+    input.value = ''; // Reset input
   },
 
   // ========================
