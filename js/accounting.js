@@ -137,18 +137,30 @@ window.Accounting = {
     }
 
     // Step 2: Build family aggregation — 1 entry per family or solo student
-    // key → { members: string[], totalCK: number, family: object|null }
+    // IMPORTANT: iterate over ALL family groups (not just tab2Set) so that
+    // family members who didn't CK are still included in the allocation.
     const familyCKMap = new Map();
-    for (const mshs of tab2Set) {
-      const ck = vtbAmt.get(mshs) || 0;
-      const fg = mshsToGroup.get(mshs);
-      const fKey = fg ? fg.groupId : 'solo_' + mshs;
-      if (!familyCKMap.has(fKey)) {
-        familyCKMap.set(fKey, { members: [], totalCK: 0, family: fg });
+    const processedMSHS = new Set();
+
+    // First: process all family groups — include ALL members regardless of CK status
+    for (const fg of groups) {
+      const members = (fg.members || []).map(m => m.toUpperCase());
+      if (members.length === 0) continue;
+      let totalCK = 0;
+      for (const mshs of members) {
+        totalCK += vtbAmt.get(mshs) || 0;
+        processedMSHS.add(mshs);
       }
-      const entry = familyCKMap.get(fKey);
-      entry.members.push(mshs);
-      entry.totalCK += ck;
+      familyCKMap.set(fg.groupId, { members, totalCK, family: fg });
+    }
+
+    // Second: process solo students (CK'd but NOT in any family group)
+    for (const mshs of tab2Set) {
+      const mshsUpper = (typeof mshs === 'string' ? mshs : '').toUpperCase();
+      if (!mshsUpper || processedMSHS.has(mshsUpper)) continue;
+      const ck = vtbAmt.get(mshsUpper) || 0;
+      familyCKMap.set('solo_' + mshsUpper, { members: [mshsUpper], totalCK: ck, family: null });
+      processedMSHS.add(mshsUpper);
     }
 
     // Step 3: For each family/solo, run allocate-then-remainder
