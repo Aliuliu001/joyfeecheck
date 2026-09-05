@@ -130,6 +130,8 @@ window.Accounting = {
     }
     console.log('[Tab6] Family groups loaded:', groups.length, 'members mapped:', mshsToGroup.size);
     console.log('[Tab6] HP_default:', hpDef, 'tab2Set size:', tab2Set.size);
+    console.log('[Tab6] tab2Set members:', [...tab2Set].join(', '));
+    console.log('[Tab6] mshsToGroup keys:', [...mshsToGroup.keys()].join(', '));
 
     // Step 2: Group VTB CK by family (or individual)
     // familyKey → { members: Set, totalCK: number, family: object|null }
@@ -147,7 +149,7 @@ window.Accounting = {
     }
     console.log('[Tab6] Family groups after aggregation:', familyCKMap.size);
     familyCKMap.forEach((entry, key) => {
-      console.log(`  [${key}] members: ${[...entry.members].join(', ')}, totalCK: ${entry.totalCK}, isFamily: ${!!entry.family}`);
+      console.log(`  [${key}] members: ${[...entry.members].join(', ')}, totalCK: ${entry.totalCK}, isFamily: ${!!entry.family}, memberCount: ${entry.members.size}`);
     });
 
     // Step 3: For each family/individual, compare naive expectation vs actual CK
@@ -156,6 +158,7 @@ window.Accounting = {
       const memberCount = entry.members.size;
       const kyVong = hpDef * memberCount;
       const tongCK = entry.totalCK;
+      console.log(`[Tab6] Processing ${fKey}: memberCount=${memberCount}, hpDef=${hpDef}, kyVong=${kyVong}, tongCK=${tongCK}, diff=${tongCK - kyVong}`);
       if (tongCK !== kyVong) {
         const chenh = tongCK - kyVong;
         const isSolo = !entry.family;
@@ -190,6 +193,8 @@ window.Accounting = {
         });
       }
     }
+    console.log('[Tab6] Final tab6 entries:', tab6.length);
+    tab6.forEach((r, i) => console.log(`  [${i+1}] ${r.mshs}: HP=${r.hocPhi}, CK=${r.ckAmount}, chenh=${r.chenhLech}, isFamily=${r.isFamily}`));
     // Sort: families first, then by chenhLech desc
     tab6.sort((a, b) => {
       if (a.isFamily !== b.isFamily) return a.isFamily ? -1 : 1;
