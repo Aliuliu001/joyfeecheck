@@ -56,6 +56,8 @@ window.App = {
     // Load prev invoice students from storage
     this.state.prevInvoiceStudents = Storage._get('joy_prev_invoice_students', []);
     this.state.prevThucTeStudents = Storage._get('joy_prev_thuc_te_students', []);
+    // Load Tab 7 (Tổng hợp) from storage
+    this.state.accTab7Rows = Storage._get('joy_acc_tab7_rows', []);
     console.log('Joy Fee Check initialized successfully.');
   },
 
@@ -1394,7 +1396,7 @@ window.App = {
     // Export all relevant localStorage keys from APP_CONFIG
     const keys = Object.values(APP_CONFIG.STORAGE_KEYS);
     // Also export custom keys
-    const extraKeys = ['joy_prev_invoice_students', 'joy_prev_thuc_te_students', 'joy_skipped_stk', 'joy_skipped_tpb', 'joy_suspended', 'joy_adjustments'];
+    const extraKeys = ['joy_prev_invoice_students', 'joy_prev_thuc_te_students', 'joy_skipped_stk', 'joy_skipped_tpb', 'joy_suspended', 'joy_adjustments', 'joy_acc_tab7_rows'];
     [...keys, ...extraKeys].forEach(key => {
       const val = localStorage.getItem(key);
       if (val) backup[key] = JSON.parse(val);
@@ -1407,9 +1409,12 @@ window.App = {
     const a = document.createElement('a');
     a.href = url;
     a.download = `JoyFeeCheck_Backup_${monthYear.replace('/', '-')}_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
-    Utils.showToast('Đã tải file backup', 'success');
+    document.body.removeChild(a);
+    // Delay revoke to ensure download starts
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    Utils.showToast('Đã tải file backup — kiểm tra thư mục Downloads', 'success');
   },
 
   importBackup: function(input) {
@@ -1547,6 +1552,7 @@ window.App = {
       }
     }
     this.renderAccountingTabs();
+    Storage._set('joy_acc_tab7_rows', this.state.accTab7Rows);
     Utils.showToast(added > 0
       ? `Đã copy ${added} HS sang Tổng hợp (tags đã cập nhật)`
       : `Tags đã cập nhật cho HS có sẵn trong Tổng hợp`, added > 0 ? 'success' : 'info');
@@ -1555,6 +1561,7 @@ window.App = {
   clearAccTab7: function() {
     if (this.state.accTab7Rows.length === 0) return;
     this.state.accTab7Rows = [];
+    Storage._set('joy_acc_tab7_rows', []);
     this.renderAccountingTabs();
     Utils.showToast('Đã xoá tất cả trong Tổng hợp', 'success');
   },
@@ -1667,6 +1674,7 @@ window.App = {
     const row = this.state.accTab7Rows.find(r => r.mshs === mshs);
     if (row) {
       row.included = included;
+      Storage._set('joy_acc_tab7_rows', this.state.accTab7Rows);
       this._renderAccTab7();
     }
   },
@@ -1675,6 +1683,7 @@ window.App = {
     const row = this.state.accTab7Rows.find(r => r.mshs === mshs);
     if (row) {
       row.hocPhi = Number(value) || 0;
+      Storage._set('joy_acc_tab7_rows', this.state.accTab7Rows);
       this._renderAccTab7();
     }
   },
