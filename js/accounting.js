@@ -169,6 +169,10 @@ window.Accounting = {
       // Sort members by MSHS ascending (deterministic)
       entry.members.sort((a, b) => a.toUpperCase().localeCompare(b.toUpperCase()));
 
+      // SKIP families with NO VTB CK at all — they likely paid via TPBank/Cash,
+      // not a "Chuyển tiền sai" case. Tab 3 (Giảm bớt) handles non-VTB families.
+      if (entry.totalCK === 0) continue;
+
       const memberCount = entry.members.length;
       const kyVong = hpDef * memberCount;
       const tongCKGiaDinh = entry.totalCK;
