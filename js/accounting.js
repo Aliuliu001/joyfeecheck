@@ -128,6 +128,8 @@ window.Accounting = {
         mshsToGroup.set(m.toUpperCase(), fg);
       }
     }
+    console.log('[Tab6] Family groups loaded:', groups.length, 'members mapped:', mshsToGroup.size);
+    console.log('[Tab6] HP_default:', hpDef, 'tab2Set size:', tab2Set.size);
 
     // Step 2: Group VTB CK by family (or individual)
     // familyKey → { members: Set, totalCK: number, family: object|null }
@@ -143,6 +145,10 @@ window.Accounting = {
       entry.members.add(mshs);
       entry.totalCK += ck;
     }
+    console.log('[Tab6] Family groups after aggregation:', familyCKMap.size);
+    familyCKMap.forEach((entry, key) => {
+      console.log(`  [${key}] members: ${[...entry.members].join(', ')}, totalCK: ${entry.totalCK}, isFamily: ${!!entry.family}`);
+    });
 
     // Step 3: For each family/individual, compare naive expectation vs actual CK
     const tab6 = [];
