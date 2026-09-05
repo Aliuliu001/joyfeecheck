@@ -1403,18 +1403,33 @@ window.App = {
     });
     // Also save current month
     backup._meta = { monthYear, exportDate: new Date().toISOString(), version: APP_CONFIG.VERSION };
-    // Download as JSON file
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const jsonStr = JSON.stringify(backup, null, 2);
+    const filename = `JoyFeeCheck_Backup_${monthYear.replace('/', '-')}_${new Date().toISOString().slice(0,10)}.json`;
+
+    // Method 1: Try standard Blob download
+    const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `JoyFeeCheck_Backup_${monthYear.replace('/', '-')}_${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // Delay revoke to ensure download starts
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-    Utils.showToast('Đã tải file backup — kiểm tra thư mục Downloads', 'success');
+
+    // Use setTimeout to escape the button click handler context
+    setTimeout(() => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      // Cleanup after a delay
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
+
+      // Fallback: if download didn't work after 2s, open in new tab
+      setTimeout(() => {
+        Utils.showToast('Nếu file không tự tải về, Ctrl+S để lưu file từ tab mới', 'info');
+        window.open(url, '_blank');
+      }, 2000);
+    }, 100);
   },
 
   importBackup: function(input) {
