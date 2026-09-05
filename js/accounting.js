@@ -195,6 +195,9 @@ window.Accounting = {
     }
     console.log('[Tab6] Final tab6 entries:', tab6.length);
     tab6.forEach((r, i) => console.log(`  [${i+1}] ${r.mshs}: HP=${r.hocPhi}, CK=${r.ckAmount}, chenh=${r.chenhLech}, isFamily=${r.isFamily}`));
+    // Debug: expose family groups for user to check
+    window._debugTab6 = { groups, mshsToGroup: Object.fromEntries(mshsToGroup), familyCKMap: Object.fromEntries(familyCKMap) };
+    console.log('[Tab6] Debug: run window._debugTab6 to inspect family grouping');
     // Sort: families first, then by chenhLech desc
     tab6.sort((a, b) => {
       if (a.isFamily !== b.isFamily) return a.isFamily ? -1 : 1;
