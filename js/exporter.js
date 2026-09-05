@@ -273,7 +273,7 @@ window.Exporter = {
     const isTab4 = tabNum === 4;
     const isTab7 = tabNum === 7;
     const headers = isTab6
-      ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'HP quy định', 'Số tiền CK', 'Chênh lệch']
+      ? ['STT', 'Thành viên (số tiền được cấp)', 'Tổng CK thực tế', 'Tổng HP kỳ vọng', 'Chênh lệch', 'Lý do']
       : isTab4
         ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do']
         : isTab7
@@ -327,14 +327,21 @@ window.Exporter = {
         headers
       ];
       rows.forEach((r, idx) => {
-        const row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
-        if (isTab6) row.push(r.ckAmount || 0, r.lyDo || '');
-        else if (isTab4) row.push(r.lyDo || '');
-        aoa.push(row);
+        if (isTab6) {
+          // Tab 6: allocate-then-remainder format (1 row per family)
+          const memberStr = (r.memberDetails || []).map(m =>
+            `${m.mshs} (${m.fullName || m.mshs}): ${Utils.formatCurrency(m.allocated)} [${m.sufficient}]`
+          ).join(' | ');
+          aoa.push([idx + 1, memberStr, r.tongCKGiaDinh || 0, r.kyVong || 0, r.chenhLech || 0, r.lyDo || '']);
+        } else {
+          const row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
+          if (isTab4) row.push(r.lyDo || '');
+          aoa.push(row);
+        }
         totalHP += (r.hocPhi || 0);
       });
       const totalRow = ['', '', '', 'TỔNG CỘNG', totalHP];
-      if (isTab6) totalRow.push('', '');
+      if (isTab6) totalRow.push('');
       else if (isTab4) totalRow.push('');
       aoa.push(totalRow);
     }
@@ -455,9 +462,9 @@ window.Exporter = {
       createSheet(buildAoA('Tăng mới', data.tab5), headers5),
       '5_Tăng_mới');
 
-    // Sheet 6: Chuyển tiền sai (with extra columns)
+    // Sheet 6: Chuyển tiền sai (allocate-then-remainder, 1 row per family)
     if (data.tab6 && data.tab6.length > 0) {
-      const hdrs6 = ['STT', 'MSHS', 'Họ tên', 'Lớp', 'HP quy định', 'Số tiền CK', 'Chênh lệch'];
+      const hdrs6 = ['STT', 'Thành viên (số tiền được cấp)', 'Tổng CK thực tế', 'Tổng HP kỳ vọng', 'Chênh lệch', 'Lý do'];
       const aoa6 = [
         [APP_CONFIG.COMPANY_NAME],
         [`BÁO CÁO KẾ TOÁN - Chuyển tiền sai - Tháng ${monthLabel}`],
@@ -466,7 +473,10 @@ window.Exporter = {
         hdrs6
       ];
       data.tab6.forEach((r, idx) => {
-        aoa6.push([idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0, r.ckAmount || 0, r.lyDo || '']);
+        const memberStr = (r.memberDetails || []).map(m =>
+          `${m.mshs} (${m.fullName || m.mshs}): ${Utils.formatCurrency(m.allocated)} [${m.sufficient}]`
+        ).join(' | ');
+        aoa6.push([idx + 1, memberStr, r.tongCKGiaDinh || 0, r.kyVong || 0, r.chenhLech || 0, r.lyDo || '']);
       });
       XLSX.utils.book_append_sheet(wb,
         createSheet(aoa6, hdrs6),

@@ -1,12 +1,12 @@
 /**
- * JOY FEE CHECK - Accounting Module (v5 — 6-tab set operations)
+ * JOY FEE CHECK - Accounting Module (v6 — 7-tab set operations)
  * 
  * Tab 1: DS HĐ Tháng trước (raw from prev invoice file import)
  * Tab 2: DS CK VTB Tháng này (students who CK to company VietinBank)
  * Tab 3: Giảm bớt = (Tab1 - Tab2) ∩ IN master ∩ HP>0 (còn cơ hội đóng tiền)
  * Tab 4: Stop học nghỉ = (Tab1 - Tab2) ∩ (NOT in master OR HP=0) (hết cơ hội)
  * Tab 5: Tăng mới = Tab2 - Tab1 (new VTB transfers)
- * Tab 6: Chuyển tiền sai = Tab2 ∩ (VTB amount ≠ HP)
+ * Tab 6: Chuyển tiền sai = allocate-then-remainder per family (INDEPENDENT from Report)
  */
 window.Accounting = {
   generateThucTe(students) {
@@ -26,16 +26,16 @@ window.Accounting = {
   },
 
   /**
-   * Compute 6-tab accounting comparison.
+   * Compute 7-tab accounting comparison.
    *
    * @param {Array} prevInvoiceStudents - Tab 1 data
    * @param {Set} vtbMatchedMSHS - Unique MSHS that CK to VTB this month
    * @param {Map} currMap - MSHS → student object (DS Tổng master)
    * @param {Map} vtbAmountByMSHS - MSHS → total VTB CK amount this month
-   * @param {Array} reportRows - Report rows (for txList)
-   * @param {Array} familyGroups - Family groups (for Tab 6 NAIVE formula)
-   * @param {number} hpDefault - Default HP per student (for Tab 6 NAIVE formula)
-   * @returns {Object} { tab1, tab2, tab3, tab4, tab5, tab6 }
+   * @param {Array} reportRows - Report rows (unused by Tab 6 — kept for signature compat)
+   * @param {Array} familyGroups - Family groups (for Tab 6 allocate-then-remainder)
+   * @param {number} hpDefault - Default HP per student (for Tab 6 allocate-then-remainder)
+   * @returns {Object} { tab1, tab2, tab3, tab4, tab5, tab6, prevSet, tab2Set }
    */
   computeInvoiceComparison(prevInvoiceStudents, vtbMatchedMSHS, currMap, vtbAmountByMSHS, reportRows, familyGroups, hpDefault) {
     const prevMSHS = (prevInvoiceStudents || []).map(s => typeof s === 'string' ? s : s.mshs).filter(Boolean);
@@ -112,93 +112,128 @@ window.Accounting = {
     const tab5 = tab2.filter(r => !prevSet.has(r.mshs));
 
     // ═══════════════════════════════════════════════════════════════
-    // Tab 6: Chuyển tiền sai — NAIVE formula (RIÊNG BIỆT, không dùng Report)
-    // KyVong = HP_default × số MSHS trong nhóm gia đình
-    // Tong_CK = tổng VTB CK của cả nhóm gia đình trong tháng
-    // Nếu Tong_CK ≠ KyVong → flag
+    // Tab 6: Chuyển tiền sai — Allocate-then-remainder algorithm
+    // COMPLETELY INDEPENDENT from Report/Đối soát tab.
+    // No dependency on reportRows whatsoever.
+    //
+    // Algorithm per family:
+    //   1. Tong_CK_GiaDinh = sum CK for all members in family
+    //   2. Sort members by MSHS ascending (deterministic)
+    //   3. Allocate HP_default to each member in order (max HP_default each)
+    //   4. ChenhLech = remainder after all members processed
+    //   5. Flag if ChenhLech ≠ 0
+    // Students NOT in any family group → solo (1-person family)
     // ═══════════════════════════════════════════════════════════════
     const vtbAmt = vtbAmountByMSHS || new Map();
     const hpDef = hpDefault || APP_CONFIG.DEFAULT_HOC_PHI || 800000;
     const groups = familyGroups || [];
 
-    // Step 1: Build family membership map (mshs → groupId)
+    // Step 1: Build family membership map (mshs → familyGroup)
     const mshsToGroup = new Map();
     for (const fg of groups) {
       for (const m of (fg.members || [])) {
         mshsToGroup.set(m.toUpperCase(), fg);
       }
     }
-    console.log('[Tab6] Family groups loaded:', groups.length, 'members mapped:', mshsToGroup.size);
-    console.log('[Tab6] HP_default:', hpDef, 'tab2Set size:', tab2Set.size);
-    console.log('[Tab6] tab2Set members:', [...tab2Set].join(', '));
-    console.log('[Tab6] mshsToGroup keys:', [...mshsToGroup.keys()].join(', '));
 
-    // Step 2: Group VTB CK by family (or individual)
-    // familyKey → { members: Set, totalCK: number, family: object|null }
+    // Step 2: Build family aggregation — 1 entry per family or solo student
+    // key → { members: string[], totalCK: number, family: object|null }
     const familyCKMap = new Map();
     for (const mshs of tab2Set) {
       const ck = vtbAmt.get(mshs) || 0;
       const fg = mshsToGroup.get(mshs);
       const fKey = fg ? fg.groupId : 'solo_' + mshs;
       if (!familyCKMap.has(fKey)) {
-        familyCKMap.set(fKey, { members: new Set(), totalCK: 0, family: fg, soloMSHS: mshs });
+        familyCKMap.set(fKey, { members: [], totalCK: 0, family: fg });
       }
       const entry = familyCKMap.get(fKey);
-      entry.members.add(mshs);
+      entry.members.push(mshs);
       entry.totalCK += ck;
     }
-    console.log('[Tab6] Family groups after aggregation:', familyCKMap.size);
-    familyCKMap.forEach((entry, key) => {
-      console.log(`  [${key}] members: ${[...entry.members].join(', ')}, totalCK: ${entry.totalCK}, isFamily: ${!!entry.family}, memberCount: ${entry.members.size}`);
-    });
 
-    // Step 3: For each family/individual, compare naive expectation vs actual CK
+    // Step 3: For each family/solo, run allocate-then-remainder
     const tab6 = [];
     for (const [fKey, entry] of familyCKMap) {
-      const memberCount = entry.members.size;
+      // Sort members by MSHS ascending (deterministic)
+      entry.members.sort((a, b) => a.toUpperCase().localeCompare(b.toUpperCase()));
+
+      const memberCount = entry.members.length;
       const kyVong = hpDef * memberCount;
-      const tongCK = entry.totalCK;
-      console.log(`[Tab6] Processing ${fKey}: memberCount=${memberCount}, hpDef=${hpDef}, kyVong=${kyVong}, tongCK=${tongCK}, diff=${tongCK - kyVong}`);
-      if (tongCK !== kyVong) {
-        const chenh = tongCK - kyVong;
-        const isSolo = !entry.family;
-        const members = [...entry.members];
-        // Get display info from first member
-        const firstMSHS = isSolo ? entry.soloMSHS : members[0];
-        const firstStudent = (currMap || new Map()).get(firstMSHS) || {};
-        // Build member names for display
-        const memberNames = members.map(m => {
-          const s = (currMap || new Map()).get(m);
-          return s ? `${m} - ${s.fullName}` : m;
-        }).join(', ');
-        // Get txList for Nguon CK
-        const reportRow = (reportRows || []).find(rr => rr.mshs === firstMSHS);
-        const lyDo = chenh < 0
-          ? `Thiếu ${Utils.formatCurrency(-chenh)}`
-          : `Dư ${Utils.formatCurrency(chenh)} — có thể gộp tiền sách/gộp nhiều tháng`;
-        tab6.push({
-          mshs: isSolo ? firstMSHS : members.join(', '),
-          fullName: isSolo ? (firstStudent.fullName || firstMSHS) : memberNames,
-          className: isSolo ? (firstStudent.className || '') : members.map(m => {
-            const s = (currMap || new Map()).get(m);
-            return s ? s.className : '';
-          }).filter(Boolean).join(', '),
-          hocPhi: kyVong,
-          ckAmount: tongCK,
-          chenhLech: chenh,
-          lyDo,
-          txList: reportRow ? reportRow.txList : [],
-          isFamily: !isSolo,
-          memberCount
-        });
+      const tongCKGiaDinh = entry.totalCK;
+      const isFamily = !!entry.family;
+
+      // Allocate HP_default to each member in order
+      let con_lai = tongCKGiaDinh;
+      const memberDetails = entry.members.map(mshs => {
+        const da_cap = Math.min(con_lai, hpDef);
+        const isSufficient = da_cap >= hpDef;
+        const shortage = isSufficient ? 0 : hpDef - da_cap;
+        con_lai -= da_cap;
+        return {
+          mshs,
+          fullName: ((currMap || new Map()).get(mshs) || {}).fullName || mshs,
+          allocated: da_cap,
+          sufficient: isSufficient ? 'Đủ' : 'Thiếu ' + Utils.formatCurrency(shortage)
+        };
+      });
+
+      // con_lai is now the remainder
+      const chenhLech = con_lai;
+
+      // Only include families/students with a mismatch (chenhLech ≠ 0)
+      // or where any member is under-allocated (thiếu)
+      const hasShortage = memberDetails.some(m => m.allocated < hpDef);
+      if (chenhLech === 0 && !hasShortage) continue;
+
+      // Build lyDo reason string
+      let lyDo = '';
+      if (chenhLech > 0) {
+        lyDo = 'Dư ' + Utils.formatCurrency(chenhLech) + ' — có thể gộp tiền sách/gộp nhiều tháng';
       }
+      // Find the most underfunded member for shortage message
+      const shortageMembers = memberDetails.filter(m => m.allocated < hpDef);
+      if (shortageMembers.length > 0) {
+        // Pick the member with the largest shortage (or last one alphabetically for determinism)
+        const worstShortage = shortageMembers.reduce((worst, m) => {
+          const diff = hpDef - m.allocated;
+          const worstDiff = hpDef - worst.allocated;
+          if (diff > worstDiff) return m;
+          if (diff === worstDiff && m.mshs > worst.mshs) return m;
+          return worst;
+        });
+        const shortageAmount = hpDef - worstShortage.allocated;
+        if (lyDo) {
+          lyDo += ' | ';
+        }
+        lyDo += 'Thiếu ' + Utils.formatCurrency(shortageAmount) + ' — thành viên ' + worstShortage.fullName + ' chưa được ghi nhận đủ tiền';
+      }
+
+      // Build display fields
+      const mshsList = entry.members;
+      const firstMSHS = mshsList[0];
+      const joinedNames = memberDetails.map(m => m.mshs + ' - ' + m.fullName).join(', ');
+      const joinedClassNames = mshsList.map(m => {
+        const s = (currMap || new Map()).get(m);
+        return s ? s.className : '';
+      }).filter(Boolean).join(', ');
+
+      tab6.push({
+        memberDetails,
+        tongCKGiaDinh,
+        kyVong,
+        chenhLech,
+        lyDo,
+        memberCount,
+        isFamily,
+        mshs: isFamily ? mshsList.join(', ') : firstMSHS,
+        fullName: isFamily ? joinedNames : (memberDetails[0].fullName || firstMSHS),
+        className: isFamily ? joinedClassNames : (((currMap || new Map()).get(firstMSHS) || {}).className || ''),
+        hocPhi: kyVong,
+        ckAmount: tongCKGiaDinh
+      });
     }
-    console.log('[Tab6] Final tab6 entries:', tab6.length);
-    tab6.forEach((r, i) => console.log(`  [${i+1}] ${r.mshs}: HP=${r.hocPhi}, CK=${r.ckAmount}, chenh=${r.chenhLech}, isFamily=${r.isFamily}`));
-    // Debug: expose family groups for user to check
-    window._debugTab6 = { groups, mshsToGroup: Object.fromEntries(mshsToGroup), familyCKMap: Object.fromEntries(familyCKMap) };
-    console.log('[Tab6] Debug: run window._debugTab6 to inspect family grouping');
-    // Sort: families first, then by chenhLech desc
+
+    // Sort: families first, then by |chenhLech| descending
     tab6.sort((a, b) => {
       if (a.isFamily !== b.isFamily) return a.isFamily ? -1 : 1;
       return Math.abs(b.chenhLech) - Math.abs(a.chenhLech);

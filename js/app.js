@@ -1194,7 +1194,7 @@ window.App = {
     const tbody = document.querySelector(`#${tableId} tbody`);
     if (!tbody) return;
     if (!rows || rows.length === 0) {
-      const colCount = tableId === 'table-acc-tab6' ? 7 : (tableId === 'table-acc-tab4' ? 6 : 5);
+      const colCount = tableId === 'table-acc-tab6' ? 6 : (tableId === 'table-acc-tab4' ? 6 : 5);
       tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:20px; color:var(--text-secondary)">Không có dữ liệu</td></tr>`;
       return;
     }
@@ -1446,31 +1446,39 @@ window.App = {
   },
 
   // ========================
-  // ACCOUNTING TAB 6: Chuyển tiền sai
+  // ACCOUNTING TAB 6: Chuyển tiền sai (allocate-then-remainder)
   // ========================
   _renderAccTab6: function() {
     const container = document.getElementById('acc-tab6-body');
     if (!container) return;
     const data = this.state.accountingData;
     if (!data || !data.tab6 || data.tab6.length === 0) {
-      container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Không có giao dịch CK nào sai tiền (so với HP_default × số HS).</p>';
+      container.innerHTML = '<p style="text-align:center; padding:30px; color:var(--text-secondary)">Không có gia đình/cá nhân nào bị lệch tiền CK (theo thuật toán "Dò và chia tiền").</p>';
       return;
     }
-    let html = '<div class="table-container"><table id="table-acc-tab6"><thead><tr><th>STT</th><th>MSHS</th><th>Họ tên</th><th>Lớp</th><th>HP kỳ vọng</th><th>Số tiền CK</th><th>Chênh lệch</th><th>Lý do</th></tr></thead><tbody>';
+    let html = '<div class="table-container"><table id="table-acc-tab6"><thead><tr><th>STT</th><th>Danh sách thành viên (số tiền được cấp)</th><th>Tổng CK thực tế</th><th>Tổng HP kỳ vọng</th><th>Chênh lệch</th><th>Lý do</th></tr></thead><tbody>';
     data.tab6.forEach((r, idx) => {
-      const chenhLech = r.chenhLech || ((r.ckAmount || 0) - (r.hocPhi || 0));
-      const cls = chenhLech > 0 ? 'dư' : 'thieu';
-      const familyBadge = r.isFamily ? '<span class="badge info" style="font-size:10px; margin-left:4px;">Gia đình</span>' : '';
+      const chenhLech = r.chenhLech || 0;
+      const cls = chenhLech > 0 ? 'dư' : chenhLech < 0 ? 'thieu' : '';
+      const familyBadge = r.isFamily ? '<span class="badge info" style="font-size:10px; margin-left:4px;">Gia đình</span>' : '<span class="badge" style="font-size:10px; margin-left:4px;">Cá nhân</span>';
+      // Build member details display
+      const members = (r.memberDetails || []).map(m => {
+        const suffColor = m.sufficient === 'Đủ' ? 'var(--success-color)' : 'var(--danger-color)';
+        const allocStr = Utils.formatCurrency(m.allocated);
+        return `<span style="display:inline-block; margin:2px 4px 2px 0; padding:2px 8px; border-radius:6px; font-size:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);">` +
+          `<strong>${m.mshs}</strong> (${m.fullName || m.mshs}): ${allocStr} <span style="color:${suffColor}; font-weight:600;">[${m.sufficient}]</span></span>`;
+      }).join(' ');
       html += `<tr>
-        <td>${idx + 1}</td><td style="font-size:12px">${r.mshs}${familyBadge}</td><td style="font-size:12px">${r.fullName}</td><td style="font-size:12px">${r.className}</td>
-        <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td class="number">${Utils.formatCurrency(r.ckAmount)}</td>
-        <td class="number ${cls}" style="font-weight:600">${chenhLech > 0 ? '+' : ''}${Utils.formatCurrency(chenhLech)}</td>
-        <td class="text-sm" style="color:${chenhLech > 0 ? 'var(--accent-yellow)' : 'var(--accent-red)'}">${r.lyDo || ''}</td>
+        <td>${idx + 1}</td>
+        <td style="font-size:12px; line-height:1.6;">${members}${familyBadge}</td>
+        <td class="number" style="font-weight:600;">${Utils.formatCurrency(r.tongCKGiaDinh)}</td>
+        <td class="number">${Utils.formatCurrency(r.kyVong)}</td>
+        <td class="number ${cls}" style="font-weight:700;">${chenhLech > 0 ? '+' : ''}${Utils.formatCurrency(chenhLech)}</td>
+        <td class="text-sm" style="color:${chenhLech > 0 ? 'var(--accent-yellow)' : 'var(--accent-red)'}; max-width:250px;">${r.lyDo || ''}</td>
       </tr>`;
     });
     html += '</tbody></table></div>';
-    html += `<p style="padding:8px; font-size:12px; color:var(--text-secondary)">💡 Kỳ vọng NAIVE = HP_default × số HS trong nhóm. Nếu lệch → kế toán soát tay (có thể do tiền sách, đóng nhiều tháng...)</p>`;
+    html += `<p style="padding:8px; font-size:12px; color:var(--text-secondary)">💡 Thuật toán "Dò và chia tiền": Dùng HP_default cho mọi thành viên (không biết học mấy lớp). Phân bổ lần lượt theo MSHS tăng dần → phần dư/thiếu cuối cùng chính là chênh lệch. Tab này CẢNH BÁO, không phải kết luận — kế toán soát tay thêm.</p>`;
     container.innerHTML = html;
   },
 
