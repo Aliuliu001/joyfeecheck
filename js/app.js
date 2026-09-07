@@ -1160,16 +1160,20 @@ window.App = {
       </tr>
     `);
     
-    // Render Tab 3: Giảm bớt
-    this._renderAccTable('table-acc-tab3', data.tab3, (r, idx) => `
-      <tr>
+    // Render Tab 3: Giảm bớt (thêm cột Nguồn CK)
+    this._renderAccTable('table-acc-tab3', data.tab3, (r, idx) => {
+      // Lookup reportRow để lấy txList hiển thị Nguồn CK
+      const reportRow = (this.state.reportRows || []).find(rr => rr.mshs === r.mshs);
+      const nguonCK = this.renderTxSource(reportRow || {});
+      return `<tr>
         <td>${idx + 1}</td>
         <td>${r.mshs}</td>
         <td>${r.fullName}</td>
         <td>${r.className}</td>
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-      </tr>
-    `);
+        <td>${nguonCK}</td>
+      </tr>`;
+    });
     
     // Render Tab 4: Stop - nghỉ học (dynamic: choice → confirm → split)
     this._renderAccTab4();
