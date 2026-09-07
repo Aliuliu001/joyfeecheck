@@ -1160,20 +1160,16 @@ window.App = {
       </tr>
     `);
     
-    // Render Tab 3: Giảm bớt (thêm cột Nguồn CK)
-    this._renderAccTable('table-acc-tab3', data.tab3, (r, idx) => {
-      // Lookup reportRow để lấy txList hiển thị Nguồn CK
-      const reportRow = (this.state.reportRows || []).find(rr => rr.mshs === r.mshs);
-      const nguonCK = this.renderTxSource(reportRow || {});
-      return `<tr>
+    // Render Tab 3: Giảm bớt
+    this._renderAccTable('table-acc-tab3', data.tab3, (r, idx) => `
+      <tr>
         <td>${idx + 1}</td>
         <td>${r.mshs}</td>
         <td>${r.fullName}</td>
         <td>${r.className}</td>
         <td class="number">${Utils.formatCurrency(r.hocPhi)}</td>
-        <td>${nguonCK}</td>
-      </tr>`;
-    });
+      </tr>
+    `);
     
     // Render Tab 4: Stop - nghỉ học (dynamic: choice → confirm → split)
     this._renderAccTab4();
@@ -1637,7 +1633,7 @@ window.App = {
     else if (sort==='hp-desc') sorted.sort((a,b)=>(b.hocPhi||0)-(a.hocPhi||0));
     // Render table
     const at = this.state.accTab7FilterTags;
-    let html = '<div class="table-container"><table class="compact-table"><thead><tr><th style="width:40px">✓</th><th>STT</th><th>MSHS</th><th>Lớp</th><th>Họ tên</th><th>Giáo viên</th><th style="width:100px">Học phí</th><th>Địa chỉ</th><th>Ghi chú</th></tr></thead><tbody>';
+    let html = '<div class="table-container"><table class="compact-table"><thead><tr><th style="width:40px">✓</th><th>STT</th><th>MSHS</th><th>Lớp</th><th>Họ tên</th><th>Giáo viên</th><th style="width:100px">Học phí</th><th>Địa chỉ</th><th>Ghi chú</th><th>Nguồn CK</th></tr></thead><tbody>';
     let totalHP=0, incCount=0;
     sorted.forEach((r, idx) => {
       const art = (r.ghiChu||'').split(', ').filter(Boolean);
@@ -1653,7 +1649,19 @@ window.App = {
       html += '<td><input type="number" class="form-control" style="width:90px;padding:2px 4px;font-size:12px;text-align:right;background:var(--bg-tertiary);border:1px solid var(--border-color);"';
       html += ' value="'+(r.hocPhi||0)+'" onchange="App.accTab7EditHP(\''+r.mshs+'\', this.value)"></td>';
       html += '<td style="font-size:12px">'+(r.diaChi||'')+'</td>';
-      html += '<td style="font-size:12px">'+(tagsH||'—')+'</td></tr>';
+      html += '<td style="font-size:12px">'+(tagsH||'—')+'</td>';
+      // Nguồn CK: lookup reportRow để hiển thị nguồn thanh toán
+      const reportRow = (this.state.reportRows || []).find(rr => rr.mshs === r.mshs);
+      let nguonCK = '<span style="color:var(--text-secondary)">—</span>';
+      if (reportRow) {
+        const txs = reportRow.txList || [];
+        if (txs.length > 0) {
+          const sourceIcons = { vtb: '🏦 VTB', tpb: '🏦 TPBank', cash: '💵 Tiền mặt' };
+          const summary = txs.map(tx => sourceIcons[tx.type] || tx.type).join(', ');
+          nguonCK = '<span style="font-size:12px">' + summary + '</span>';
+        }
+      }
+      html += '<td>' + nguonCK + '</td></tr>';
     });
     html += '</tbody></table></div>';
     html += '<div style="padding:8px;font-size:13px;display:flex;gap:20px;"><span>☑ Đã chọn: <strong>'+incCount+'</strong> HS</span><span>💰 Tổng cộng: <strong>'+Utils.formatCurrency(totalHP)+'</strong></span></div>';

@@ -272,16 +272,13 @@ window.Exporter = {
     const isTab6 = tabNum === 6;
     const isTab4 = tabNum === 4;
     const isTab7 = tabNum === 7;
-    const isTab3 = tabNum === 3;
     const headers = isTab6
       ? ['STT', 'Thành viên (số tiền được cấp)', 'Tổng CK thực tế', 'Tổng HP kỳ vọng', 'Chênh lệch', 'Lý do']
       : isTab4
         ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Lý do']
         : isTab7
-          ? ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'Ghi chú']
-          : isTab3
-            ? ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí', 'Nguồn CK']
-            : ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
+          ? ['STT', 'MSHS', 'Lớp', 'Họ tên', 'Giáo viên', 'Học phí', 'Địa chỉ', 'Ghi chú', 'Nguồn CK']
+          : ['STT', 'MSHS', 'Họ tên', 'Lớp', 'Học phí'];
 
     let aoa;
     let totalHP = 0;
@@ -302,11 +299,20 @@ window.Exporter = {
         if (filterTags && ghiChu) {
           ghiChu = ghiChu.split(', ').filter(t => filterTags.has(t)).join(', ');
         }
-        aoa.push([idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', ghiChu]);
+        // Nguồn CK: lookup reportRow để lấy nguồn thanh toán
+        const reportRows = window.App?.state?.reportRows || [];
+        const rr = reportRows.find(x => x.mshs === r.mshs);
+        let nguonCK = '—';
+        if (rr) {
+          if (rr.chuyenKhoanVTB > 0) nguonCK = 'VTB';
+          if (rr.chuyenKhoanTPB > 0) nguonCK = nguonCK === '—' ? 'TPBank' : nguonCK + ', TPBank';
+          if (rr.tienMat > 0) nguonCK = nguonCK === '—' ? 'Tiền mặt' : nguonCK + ', Tiền mặt';
+        }
+        aoa.push([idx + 1, r.mshs, r.className, r.fullName, r.teacher || '', r.hocPhi || 0, r.diaChi || '', ghiChu, nguonCK]);
         totalHP += (r.hocPhi || 0);
       });
       // Total row: TỔNG CỘNG in col D, total in col E (not F, to avoid sum/subtotal issues)
-      aoa.push(['', '', '', 'TỔNG CỘNG', totalHP, '', '', '']);
+      aoa.push(['', '', '', 'TỔNG CỘNG', totalHP, '', '', '', '']);
       // Empty row
       aoa.push([]);
       // Amount in words (column A)
@@ -339,18 +345,6 @@ window.Exporter = {
         } else {
           const row = [idx + 1, r.mshs, r.fullName, r.className, r.hocPhi || 0];
           if (isTab4) row.push(r.lyDo || '');
-          // Tab 3: thêm cột Nguồn CK (lookup từ reportRows)
-          if (isTab3) {
-            const reportRows = window.App?.state?.reportRows || [];
-            const rr = reportRows.find(x => x.mshs === r.mshs);
-            let nguonCK = '—';
-            if (rr) {
-              if (rr.chuyenKhoanVTB > 0) nguonCK = 'VTB';
-              else if (rr.chuyenKhoanTPB > 0) nguonCK = 'TPBank';
-              else if (rr.tienMat > 0) nguonCK = 'Tiền mặt';
-            }
-            row.push(nguonCK);
-          }
           aoa.push(row);
         }
         totalHP += (r.hocPhi || 0);
@@ -358,7 +352,6 @@ window.Exporter = {
       const totalRow = ['', '', '', 'TỔNG CỘNG', totalHP];
       if (isTab6) totalRow.push('');
       else if (isTab4) totalRow.push('');
-      else if (isTab3) totalRow.push('');
       aoa.push(totalRow);
     }
 
